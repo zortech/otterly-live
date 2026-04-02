@@ -52,14 +52,13 @@ jobs:
 
       - name: Package (macOS)
         if: matrix.os == 'macos-latest'
-        env:
-          # macOS code signing (optional — omit if not signing)
-          # CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-          # Apple notarization (optional)
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        # To enable code signing, add these secrets and uncomment:
+        # env:
+        #   CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+        #   CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        #   APPLE_ID: ${{ secrets.APPLE_ID }}
+        #   APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        #   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run package:mac -- --publish never
 
       - name: Package (Linux)
