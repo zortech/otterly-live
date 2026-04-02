@@ -127,8 +127,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "ottery-live",
-      "repo": "ottery-live"
+      "owner": "zortech",
+      "repo": "otterly-live"
     }
   }
 }
