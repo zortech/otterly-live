@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
           cache: npm
 
       - name: Install system dependencies
@@ -25,9 +25,6 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
-
-      - name: Rebuild native modules
-        run: npm rebuild better-sqlite3
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
@@ -58,7 +55,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
           cache: npm
 
       - name: Install dependencies (Linux)
