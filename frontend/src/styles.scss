@@ -1,0 +1,271 @@
+@import '@fontsource/outfit/300.css';
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+:root {
+  --bg-base: #090b10;
+  --bg-card: #111318;
+  --bg-raised: #181c25;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+
+  --accent: #00c9a7;
+  --accent-dim: rgba(0, 201, 167, 0.1);
+  --accent-border: rgba(0, 201, 167, 0.25);
+
+  --live: #00e676;
+  --live-red: #ff3355;
+  --warn-color: #ffb74d;
+  --error-color: #ff4757;
+
+  --text-1: #dde3ee;
+  --text-2: #7c8aa0;
+  --text-3: #3a4255;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-2: rgba(255, 255, 255, 0.12);
+
+  --platform-twitch: #9146ff;
+  --platform-youtube: #ff0000;
+  --platform-kick: #53fc18;
+  --platform-tiktok: #fe2c55;
+  --platform-x: #c9cdd1;
+  --platform-joystick: #8b5cf6;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --sidebar-width: 220px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* ── Global Material overrides ─────────────────────────────────────────── */
+
+.mat-mdc-card {
+  --mdc-elevated-card-container-color: var(--bg-card) !important;
+  --mdc-outlined-card-container-color: var(--bg-card) !important;
+  --mdc-outlined-card-outline-color: var(--border) !important;
+  color: var(--text-1) !important;
+}
+
+.mat-mdc-card-title { color: var(--text-1) !important; font-size: 15px !important; font-weight: 600 !important; }
+.mat-mdc-card-subtitle { color: var(--text-2) !important; }
+
+.mdc-text-field--outlined:not(.mdc-text-field--disabled) {
+  --mdc-outlined-text-field-outline-color: var(--border-2) !important;
+  --mdc-outlined-text-field-hover-outline-color: rgba(255,255,255,0.2) !important;
+  --mdc-outlined-text-field-focus-outline-color: var(--accent) !important;
+  --mdc-outlined-text-field-input-text-color: var(--text-1) !important;
+  --mdc-outlined-text-field-label-text-color: var(--text-2) !important;
+  --mdc-outlined-text-field-focus-label-text-color: var(--accent) !important;
+  --mdc-outlined-text-field-caret-color: var(--accent) !important;
+}
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) {
+  --mdc-filled-text-field-container-color: var(--bg-raised) !important;
+  --mdc-filled-text-field-input-text-color: var(--text-1) !important;
+  --mdc-filled-text-field-label-text-color: var(--text-2) !important;
+  --mdc-filled-text-field-focus-label-text-color: var(--accent) !important;
+  --mdc-filled-text-field-caret-color: var(--accent) !important;
+}
+
+/* ── Global element-level fixes (light theme sets color directly on elements) ── */
+
+/* All text field inputs and textareas */
+.mdc-text-field input,
+.mdc-text-field textarea {
+  color: var(--text-1) !important;
+  caret-color: var(--accent) !important;
+}
+
+/* Floating labels — idle, focused, floated */
+.mdc-floating-label { color: var(--text-2) !important; }
+.mdc-floating-label--float-above { color: var(--text-2) !important; }
+.mdc-text-field--focused .mdc-floating-label,
+.mdc-text-field--focused .mdc-floating-label--float-above { color: var(--accent) !important; }
+
+/* Outlined notch borders */
+.mdc-text-field--outlined .mdc-notched-outline__leading,
+.mdc-text-field--outlined .mdc-notched-outline__notch,
+.mdc-text-field--outlined .mdc-notched-outline__trailing {
+  border-color: var(--border-2) !important;
+}
+.mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__leading,
+.mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__notch,
+.mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__trailing {
+  border-color: rgba(255,255,255,0.22) !important;
+}
+.mdc-text-field--focused .mdc-notched-outline__leading,
+.mdc-text-field--focused .mdc-notched-outline__notch,
+.mdc-text-field--focused .mdc-notched-outline__trailing {
+  border-color: var(--accent) !important;
+}
+
+/* Hint / subscript / error text */
+.mat-mdc-form-field-hint,
+.mat-mdc-form-field-error,
+.mat-mdc-form-field-subscript-wrapper { color: var(--text-2) !important; }
+
+/* Select trigger */
+.mat-mdc-select-value-text { color: var(--text-1) !important; }
+.mat-mdc-select-placeholder { color: var(--text-3) !important; }
+.mat-mdc-select-arrow svg { fill: var(--text-2) !important; }
+
+/* Slide toggle label */
+.mdc-form-field > label { color: var(--text-1) !important; }
+
+.mat-mdc-select-panel {
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius) !important;
+}
+
+.mat-mdc-option { color: var(--text-1) !important; }
+.mat-mdc-option:hover:not(.mdc-list-item--disabled) { background: var(--bg-hover) !important; }
+.mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) { background: var(--accent-dim) !important; }
+
+.mat-mdc-chip:not(.mat-mdc-chip-highlighted) {
+  --mdc-chip-container-color: var(--bg-raised) !important;
+  --mdc-chip-label-text-color: var(--text-2) !important;
+  --mdc-chip-outline-color: var(--border) !important;
+}
+
+.mat-mdc-chip.mat-mdc-chip-highlighted {
+  --mdc-chip-container-color: var(--accent-dim) !important;
+  --mdc-chip-label-text-color: var(--accent) !important;
+  --mdc-chip-outline-color: var(--accent-border) !important;
+}
+
+.mat-mdc-chip.mat-warn.mat-mdc-chip-highlighted {
+  --mdc-chip-container-color: rgba(255,71,87,0.12) !important;
+  --mdc-chip-label-text-color: var(--error-color) !important;
+}
+
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: var(--bg-card) !important;
+  --mdc-dialog-supporting-text-color: var(--text-1) !important;
+  --mdc-dialog-subhead-color: var(--text-1) !important;
+}
+
+/* The surface is the actual painted element — target it directly */
+.mat-mdc-dialog-surface {
+  background: var(--bg-card) !important;
+  color: var(--text-1) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius-lg) !important;
+
+  /* The light theme sets color: rgba(0,0,0,0.87) directly on elements.
+     Override every text-bearing element inside the dialog. */
+  h1, h2, h3, h4, h5, h6 { color: var(--text-1) !important; }
+  p, li, label, span, small, strong, em, code { color: inherit; }
+  ol, ul { color: var(--text-2); }
+
+  /* Dividers inside the dialog */
+  .mat-divider { border-color: var(--border) !important; }
+}
+
+.mdc-dialog__title { color: var(--text-1) !important; }
+.mat-mdc-dialog-title { color: var(--text-1) !important; }
+.mat-mdc-dialog-content { color: var(--text-1) !important; }
+.mat-mdc-dialog-actions { border-top: 1px solid var(--border); }
+
+/* M3 form field tokens (supplement the MDC variable overrides above) */
+.mat-mdc-form-field {
+  --mat-form-field-container-text-color: var(--text-1);
+  --mat-form-field-label-text-color: var(--text-2);
+  --mat-form-field-subscript-text-color: var(--text-2);
+  --mat-form-field-focus-label-text-color: var(--accent);
+  --mat-form-field-hint-text-color: var(--text-2);
+}
+
+/* M3 select tokens */
+.mat-mdc-select {
+  --mat-select-enabled-trigger-text-color: var(--text-1);
+  --mat-select-placeholder-text-color: var(--text-3);
+  --mat-select-disabled-trigger-text-color: var(--text-3);
+  --mat-select-arrow-foreground-color: var(--text-2);
+}
+
+/* Unselected slide-toggle track/thumb */
+.mat-mdc-slide-toggle {
+  --mdc-switch-unselected-track-color: var(--bg-raised);
+  --mdc-switch-unselected-hover-track-color: var(--border-2);
+  --mdc-switch-unselected-handle-color: var(--text-3);
+  --mdc-switch-unselected-hover-handle-color: var(--text-2);
+  --mdc-switch-unselected-icon-color: transparent;
+}
+
+.mat-mdc-button:not([disabled]) { color: var(--text-2) !important; }
+.mat-mdc-button:hover:not([disabled]) { color: var(--text-1) !important; }
+
+.mat-mdc-stroked-button:not([disabled]) {
+  --mdc-outlined-button-container-color: transparent !important;
+  --mdc-outlined-button-outline-color: var(--border-2) !important;
+  --mdc-outlined-button-label-text-color: var(--text-1) !important;
+}
+.mat-mdc-stroked-button:not([disabled]):hover {
+  --mdc-outlined-button-outline-color: rgba(255,255,255,0.22) !important;
+  background: var(--bg-hover) !important;
+}
+
+.mat-mdc-raised-button[color="primary"]:not([disabled]) {
+  --mdc-filled-button-container-color: var(--accent) !important;
+  --mdc-filled-button-label-text-color: #000 !important;
+}
+
+.mat-mdc-icon-button { color: var(--text-2) !important; }
+.mat-mdc-icon-button:hover { color: var(--text-1) !important; }
+
+.mdc-snackbar__surface {
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text-1) !important;
+}
+
+.mat-mdc-snack-bar-label { color: var(--text-1) !important; }
+
+.mat-mdc-slide-toggle {
+  --mdc-switch-selected-track-color: var(--accent) !important;
+  --mdc-switch-selected-handle-color: #fff !important;
+  --mdc-switch-selected-hover-track-color: var(--accent) !important;
+  --mdc-switch-selected-pressed-track-color: var(--accent) !important;
+  --mdc-switch-selected-focus-track-color: var(--accent) !important;
+}
+.mat-mdc-slide-toggle .mdc-form-field { color: var(--text-1) !important; }
+
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-color: var(--accent) !important;
+  --mdc-linear-progress-track-color: var(--bg-raised) !important;
+}
+
+.mat-mdc-progress-spinner circle {
+  stroke: var(--accent) !important;
+}
+
+mat-divider { border-color: var(--border) !important; }
+
+.mat-mdc-form-field-hint { color: var(--text-2) !important; }
+
+.mat-mdc-select-value { color: var(--text-1) !important; }
+.mat-mdc-select-arrow { color: var(--text-2) !important; }

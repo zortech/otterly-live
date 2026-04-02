@@ -1,0 +1,26 @@
+services:
+  relay:
+    build: .
+    ports:
+      - "3800:3800"   # HTTP API + Socket.io
+      - "1936:1936"   # RTMPS ingest (local Ottery Live → relay)
+    volumes:
+      - relay-data:/app/data
+      - ./certs:/app/certs:ro   # TLS certs for RTMPS — mount your own
+    environment:
+      RELAY_DB_PATH:        /app/data/relay.db
+      RELAY_PORT:           3800
+      RELAY_RTMPS_PORT:     1936
+      RELAY_RTMPS_CERT_PATH: /app/certs/server.crt
+      RELAY_RTMPS_KEY_PATH:  /app/certs/server.key
+      RELAY_LOG_LEVEL:      info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3800/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  relay-data:

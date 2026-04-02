@@ -1,0 +1,15 @@
+{
+  "/api": {
+    "target": "http://localhost:3737",
+    "secure": false
+  },
+  "/auth": {
+    "target": "http://localhost:3737",
+    "secure": false
+  },
+  "/socket.io": {
+    "target": "http://localhost:3737",
+    "secure": false,
+    "ws": true
+  }
+}

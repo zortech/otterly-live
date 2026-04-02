@@ -1,0 +1,71 @@
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-row">
+        <div class="brand-icon">
+          <div class="dot-ring"></div>
+        </div>
+        <div class="brand-text">
+          <div class="app-name">Ottery Live</div>
+          <div class="app-tagline">Multi-stream</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/ottery-live/dashboard" routerLinkActive="active">
+        <mat-icon>dashboard</mat-icon>
+        Dashboard
+      </a>
+      <a routerLink="/ottery-live/platforms" routerLinkActive="active">
+        <mat-icon>stream</mat-icon>
+        Platforms
+      </a>
+      <a routerLink="/ottery-live/settings" routerLinkActive="active">
+        <mat-icon>settings</mat-icon>
+        Settings
+      </a>
+      <a routerLink="/ottery-live/events" routerLinkActive="active">
+        <mat-icon>history</mat-icon>
+        Event Log
+      </a>
+      <a routerLink="/ottery-live/interfaces" routerLinkActive="active">
+        <mat-icon>widgets</mat-icon>
+        Interfaces
+      </a>
+      <a routerLink="/ottery-live/credits" routerLinkActive="active">
+        <mat-icon>toll</mat-icon>
+        Credits
+      </a>
+      <a routerLink="/ottery-live/chat" routerLinkActive="active">
+        <mat-icon>chat</mat-icon>
+        Chat
+      </a>
+      <a routerLink="/ottery-live/music" routerLinkActive="active">
+        <mat-icon>queue_music</mat-icon>
+        Music
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      @if (updateReady()) {
+        <div class="update-banner">
+          <div class="update-title">
+            <mat-icon>system_update</mat-icon>
+            Update ready
+          </div>
+          <div class="update-desc">A new version has been downloaded and is ready to install.</div>
+          <button (click)="restartForUpdate()">Restart Now</button>
+        </div>
+      }
+      <a routerLink="/ottery-live/help" routerLinkActive="active" class="help-link">
+        <mat-icon>help_outline</mat-icon>
+        Help
+      </a>
+    </div>
+  </aside>
+
+  <main class="app-content">
+    <router-outlet />
+  </main>
+</div>

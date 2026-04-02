@@ -1,0 +1,528 @@
+_debug_node-chunk.mjs:10927 Angular is running in development mode.
+VM4 sandbox_bundle:2 Electron Security Warning (Insecure Content-Security-Policy) This renderer process has either no Content Security
+  Policy set or a policy with "unsafe-eval" enabled. This exposes users of
+  this app to unnecessary security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+warnAboutInsecureCSP @ VM4 sandbox_bundle:2
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0203: toObservable() can only be used within an injection context such as a constructor, a factory function, a field initializer, or a function used with `runInInjectionContext`. Find more at https://v21.angular.dev/errors/NG0203
+    at assertInInjectionContext (_effect-chunk2.mjs:1475:11)
+    at toObservable (rxjs-interop.mjs:76:5)
+    at _DashboardComponent.ngOnInit (dashboard.component.ts:533:5)
+    at callHookInternal (_debug_node-chunk.mjs:555:10)
+    at callHook (_debug_node-chunk.mjs:570:7)
+    at callHooks (_debug_node-chunk.mjs:544:9)
+    at executeInitAndCheckHooks (_debug_node-chunk.mjs:513:5)
+    at refreshView (_debug_node-chunk.mjs:5701:11)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+handleError @ _effect-chunk2.mjs:2601
+Show 1 more frame
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+Show 1 more frame
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+Show 1 more frame
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+Show 1 more frame
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0203: toObservable() can only be used within an injection context such as a constructor, a factory function, a field initializer, or a function used with `runInInjectionContext`. Find more at https://v21.angular.dev/errors/NG0203
+    at assertInInjectionContext (_effect-chunk2.mjs:1475:11)
+    at toObservable (rxjs-interop.mjs:76:5)
+    at _DashboardComponent.ngOnInit (dashboard.component.ts:533:5)
+    at callHookInternal (_debug_node-chunk.mjs:555:10)
+    at callHook (_debug_node-chunk.mjs:570:7)
+    at callHooks (_debug_node-chunk.mjs:544:9)
+    at executeInitAndCheckHooks (_debug_node-chunk.mjs:513:5)
+    at refreshView (_debug_node-chunk.mjs:5701:11)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 14 more frames
+Show less
+dashboard.component.ts:525 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2743
+execFinalizer @ Subscription.js:137
+Subscription2.unsubscribe @ Subscription.js:55
+Subscriber2.unsubscribe @ Subscriber.js:58
+OperatorSubscriber2.unsubscribe @ OperatorSubscriber.js:54
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:44
+Subscriber2.complete @ Subscriber.js:52
+checkComplete @ switchMap.js:9
+(anonymous) @ switchMap.js:16
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:38
+Subscriber2.complete @ Subscriber.js:52
+(anonymous) @ _module-chunk.mjs:1130
+load
+(anonymous) @ _module-chunk.mjs:1196
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:10
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ finalize.js:5
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+doInnerSub @ mergeInternals.js:19
+outerNext @ mergeInternals.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+mergeInternals @ mergeInternals.js:53
+(anonymous) @ mergeMap.js:14
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ filter.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ map.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ takeUntil.js:8
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+ngOnInit @ dashboard.component.ts:525
+callHookInternal @ _debug_node-chunk.mjs:555
+callHook @ _debug_node-chunk.mjs:570
+callHooks @ _debug_node-chunk.mjs:544
+executeInitAndCheckHooks @ _debug_node-chunk.mjs:513
+refreshView @ _debug_node-chunk.mjs:5701
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInEmbeddedViews @ _debug_node-chunk.mjs:5783
+refreshView @ _debug_node-chunk.mjs:5710
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInComponent @ _debug_node-chunk.mjs:5803
+detectChangesInChildComponents @ _debug_node-chunk.mjs:5851
+refreshView @ _debug_node-chunk.mjs:5731
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewWhileDirty @ _debug_node-chunk.mjs:5638
+detectChangesInternal @ _debug_node-chunk.mjs:5627
+synchronizeOnce @ _debug_node-chunk.mjs:12351
+synchronize @ _debug_node-chunk.mjs:12325
+tickImpl @ _debug_node-chunk.mjs:12300
+_tick @ _debug_node-chunk.mjs:12288
+(anonymous) @ _debug_node-chunk.mjs:18164
+run @ _effect-chunk2.mjs:2570
+tick @ _debug_node-chunk.mjs:18162
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 109 more frames
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0203: toObservable() can only be used within an injection context such as a constructor, a factory function, a field initializer, or a function used with `runInInjectionContext`. Find more at https://v21.angular.dev/errors/NG0203
+    at assertInInjectionContext (_effect-chunk2.mjs:1475:11)
+    at toObservable (rxjs-interop.mjs:76:5)
+    at _DashboardComponent.ngOnInit (dashboard.component.ts:533:5)
+    at callHookInternal (_debug_node-chunk.mjs:555:10)
+    at callHook (_debug_node-chunk.mjs:570:7)
+    at callHooks (_debug_node-chunk.mjs:544:9)
+    at executeInitAndCheckHooks (_debug_node-chunk.mjs:513:5)
+    at refreshView (_debug_node-chunk.mjs:5701:11)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 14 more frames
+Show less
+dashboard.component.ts:525 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2743
+execFinalizer @ Subscription.js:137
+Subscription2.unsubscribe @ Subscription.js:55
+Subscriber2.unsubscribe @ Subscriber.js:58
+OperatorSubscriber2.unsubscribe @ OperatorSubscriber.js:54
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:44
+Subscriber2.complete @ Subscriber.js:52
+checkComplete @ switchMap.js:9
+(anonymous) @ switchMap.js:16
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:38
+Subscriber2.complete @ Subscriber.js:52
+(anonymous) @ _module-chunk.mjs:1130
+load
+(anonymous) @ _module-chunk.mjs:1196
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:10
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ finalize.js:5
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+doInnerSub @ mergeInternals.js:19
+outerNext @ mergeInternals.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+mergeInternals @ mergeInternals.js:53
+(anonymous) @ mergeMap.js:14
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ filter.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ map.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ takeUntil.js:8
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+ngOnInit @ dashboard.component.ts:525
+callHookInternal @ _debug_node-chunk.mjs:555
+callHook @ _debug_node-chunk.mjs:570
+callHooks @ _debug_node-chunk.mjs:544
+executeInitAndCheckHooks @ _debug_node-chunk.mjs:513
+refreshView @ _debug_node-chunk.mjs:5701
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInEmbeddedViews @ _debug_node-chunk.mjs:5783
+refreshView @ _debug_node-chunk.mjs:5710
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInComponent @ _debug_node-chunk.mjs:5803
+detectChangesInChildComponents @ _debug_node-chunk.mjs:5851
+refreshView @ _debug_node-chunk.mjs:5731
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewWhileDirty @ _debug_node-chunk.mjs:5638
+detectChangesInternal @ _debug_node-chunk.mjs:5627
+synchronizeOnce @ _debug_node-chunk.mjs:12351
+synchronize @ _debug_node-chunk.mjs:12325
+tickImpl @ _debug_node-chunk.mjs:12300
+_tick @ _debug_node-chunk.mjs:12288
+(anonymous) @ _debug_node-chunk.mjs:18164
+run @ _effect-chunk2.mjs:2570
+tick @ _debug_node-chunk.mjs:18162
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 109 more frames
+Show less
+_effect-chunk2.mjs:2601 ERROR RuntimeError: NG0203: toObservable() can only be used within an injection context such as a constructor, a factory function, a field initializer, or a function used with `runInInjectionContext`. Find more at https://v21.angular.dev/errors/NG0203
+    at assertInInjectionContext (_effect-chunk2.mjs:1475:11)
+    at toObservable (rxjs-interop.mjs:76:5)
+    at _DashboardComponent.ngOnInit (dashboard.component.ts:533:5)
+    at callHookInternal (_debug_node-chunk.mjs:555:10)
+    at callHook (_debug_node-chunk.mjs:570:7)
+    at callHooks (_debug_node-chunk.mjs:544:9)
+    at executeInitAndCheckHooks (_debug_node-chunk.mjs:513:5)
+    at refreshView (_debug_node-chunk.mjs:5701:11)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 14 more frames
+Show less
+dashboard.component.ts:525 ERROR RuntimeError: NG0100: ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: 'undefined'. Current value: 'idle'. Expression location: _DashboardComponent component It seems like the view has been created after its parent and its children have been dirty checked. Has it been created in a change detection hook? Find more at https://v21.angular.dev/errors/NG0100
+    at throwErrorIfNoChangesMode (_debug_node-chunk.mjs:3478:9)
+    at bindingUpdated (_debug_node-chunk.mjs:8103:9)
+    at checkStylingMap (_debug_node-chunk.mjs:15883:30)
+    at Module.ɵɵclassMap (_debug_node-chunk.mjs:15857:3)
+    at DashboardComponent_Template (dashboard.component.ts:236:29)
+    at executeTemplate (_debug_node-chunk.mjs:5019:5)
+    at refreshView (_debug_node-chunk.mjs:5689:7)
+    at detectChangesInView (_debug_node-chunk.mjs:5829:5)
+    at detectChangesInViewIfAttached (_debug_node-chunk.mjs:5812:3)
+    at detectChangesInComponent (_debug_node-chunk.mjs:5803:5)
+handleError @ _effect-chunk2.mjs:2601
+(anonymous) @ _effect-chunk2.mjs:2617
+runOutsideAngular @ _effect-chunk2.mjs:2576
+(anonymous) @ _effect-chunk2.mjs:2610
+tick @ _debug_node-chunk.mjs:18167
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2743
+execFinalizer @ Subscription.js:137
+Subscription2.unsubscribe @ Subscription.js:55
+Subscriber2.unsubscribe @ Subscriber.js:58
+OperatorSubscriber2.unsubscribe @ OperatorSubscriber.js:54
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:44
+Subscriber2.complete @ Subscriber.js:52
+checkComplete @ switchMap.js:9
+(anonymous) @ switchMap.js:16
+OperatorSubscriber2._this._complete @ OperatorSubscriber.js:38
+Subscriber2.complete @ Subscriber.js:52
+(anonymous) @ _module-chunk.mjs:1130
+load
+(anonymous) @ _module-chunk.mjs:1196
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ switchMap.js:10
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ finalize.js:5
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+doInnerSub @ mergeInternals.js:19
+outerNext @ mergeInternals.js:14
+OperatorSubscriber2._this._next @ OperatorSubscriber.js:15
+Subscriber2.next @ Subscriber.js:34
+(anonymous) @ innerFrom.js:51
+Observable2._trySubscribe @ Observable.js:38
+(anonymous) @ Observable.js:32
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+mergeInternals @ mergeInternals.js:53
+(anonymous) @ mergeMap.js:14
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ filter.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ map.js:6
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+(anonymous) @ takeUntil.js:8
+(anonymous) @ lift.js:10
+(anonymous) @ Observable.js:27
+errorContext @ errorContext.js:19
+Observable2.subscribe @ Observable.js:23
+ngOnInit @ dashboard.component.ts:525
+callHookInternal @ _debug_node-chunk.mjs:555
+callHook @ _debug_node-chunk.mjs:570
+callHooks @ _debug_node-chunk.mjs:544
+executeInitAndCheckHooks @ _debug_node-chunk.mjs:513
+refreshView @ _debug_node-chunk.mjs:5701
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInEmbeddedViews @ _debug_node-chunk.mjs:5783
+refreshView @ _debug_node-chunk.mjs:5710
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewIfAttached @ _debug_node-chunk.mjs:5812
+detectChangesInComponent @ _debug_node-chunk.mjs:5803
+detectChangesInChildComponents @ _debug_node-chunk.mjs:5851
+refreshView @ _debug_node-chunk.mjs:5731
+detectChangesInView @ _debug_node-chunk.mjs:5829
+detectChangesInViewWhileDirty @ _debug_node-chunk.mjs:5638
+detectChangesInternal @ _debug_node-chunk.mjs:5627
+synchronizeOnce @ _debug_node-chunk.mjs:12351
+synchronize @ _debug_node-chunk.mjs:12325
+tickImpl @ _debug_node-chunk.mjs:12300
+_tick @ _debug_node-chunk.mjs:12288
+(anonymous) @ _debug_node-chunk.mjs:18164
+run @ _effect-chunk2.mjs:2570
+tick @ _debug_node-chunk.mjs:18162
+(anonymous) @ _debug_node-chunk.mjs:18134
+(anonymous) @ _effect-chunk2.mjs:2337
+requestAnimationFrame
+scheduleCallbackWithRafRace @ _effect-chunk2.mjs:2336
+(anonymous) @ _debug_node-chunk.mjs:18134
+runOutsideAngular @ _effect-chunk2.mjs:2576
+notify @ _debug_node-chunk.mjs:18134
+markViewDirty @ _debug_node-chunk.mjs:5883
+wrapListenerIn_markDirtyAndPreventDefault @ _debug_node-chunk.mjs:8127
+(anonymous) @ _dom_renderer-chunk.mjs:566
+Show 109 more frames
+Show less

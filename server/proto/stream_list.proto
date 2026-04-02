@@ -1,0 +1,88 @@
+// Minimal proto definition for YouTube's internal gRPC live chat streaming API.
+// Service: V3DataLiveChatMessageService, endpoint: youtubei.googleapis.com:443
+// Only fields used by YouTubeCapture worker are defined here.
+// Reverse-engineered from YouTube Data API v3 network traffic.
+
+syntax = "proto3";
+
+package google.youtube.v3;
+
+service V3DataLiveChatMessageService {
+  // Server-streaming RPC — YouTube pushes LiveChatMessage objects as they arrive.
+  rpc StreamList (StreamListRequest) returns (stream LiveChatMessage);
+}
+
+message StreamListRequest {
+  string live_chat_id    = 1;
+  uint32 profile_image_size = 2;  // 0 = default; omit by setting to 0
+}
+
+// Author details embedded in each message
+message AuthorDetails {
+  string channel_id           = 1;
+  string channel_url          = 2;
+  string display_name         = 3;
+  string profile_image_url    = 4;
+  bool   is_verified          = 5;
+  bool   is_chat_owner        = 6;
+  bool   is_chat_sponsor      = 7;
+  bool   is_chat_moderator    = 8;
+}
+
+// Super Chat / Super Sticker details
+message SuperChatDetails {
+  uint64 amount_micros           = 1;  // amount in micro-units (divide by 1e6)
+  string currency                = 2;
+  string amount_display_string   = 3;  // e.g. "$5.00"
+  string user_comment            = 4;
+  uint32 tier                    = 5;  // 1–7
+  string type                    = 6;  // "superChatEvent" | "superStickerEvent"
+}
+
+// Super Sticker details
+message SuperStickerDetails {
+  string sticker_id             = 1;
+  uint64 amount_micros          = 2;
+  string currency               = 3;
+  string amount_display_string  = 4;
+  uint32 tier                   = 5;
+}
+
+// New member / member milestone details
+message MemberDetails {
+  uint32 member_month           = 1;
+  string member_level_name      = 2;
+  string user_comment           = 3;  // optional milestone message
+}
+
+// Gifted membership details
+message GiftMembershipDetails {
+  uint32 gift_memberships_count = 1;
+  string gift_memberships_level_name = 2;
+}
+
+message Snippet {
+  // Discriminator field — maps to normalized event type
+  string type                  = 1;
+
+  // Present on all message types
+  string live_chat_id          = 2;
+  string author_channel_id     = 3;
+  bool   is_super_chat_or_super_sticker = 4;
+  string display_message       = 5;  // human-readable text; present on most types
+
+  // Type-specific sub-messages (at most one will be populated per message)
+  SuperChatDetails       super_chat_details        = 6;
+  SuperStickerDetails    super_sticker_details     = 7;
+  MemberDetails          member_milestone_chat_details = 8;
+  GiftMembershipDetails  membership_gifting_details = 9;
+  GiftMembershipDetails  gift_membership_received_details = 10;
+}
+
+message LiveChatMessage {
+  string         id            = 1;
+  string         kind          = 2;  // "youtube#liveChatMessage"
+  string         etag          = 3;
+  Snippet        snippet       = 4;
+  AuthorDetails  author_details = 5;
+}
