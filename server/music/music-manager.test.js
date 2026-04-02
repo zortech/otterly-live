@@ -190,22 +190,24 @@ describe('!play command', () => {
     }));
   });
 
-  it('sends duplicate reply when track is already queued', async () => {
+  it('emits sr_rejected when track is already queued', async () => {
     queue.isDuplicate.mockResolvedValue(true);
     await dispatchPlay('!play Test Song');
     expect(queue.add).not.toHaveBeenCalled();
-    expect(eventBus.emit).toHaveBeenCalledWith('chat.reply', expect.objectContaining({
-      message: expect.stringContaining('already in the queue'),
+    expect(eventBus.emit).toHaveBeenCalledWith('event', expect.objectContaining({
+      type: 'music.sr_rejected',
+      data: expect.objectContaining({ reason: 'duplicate' }),
     }));
   });
 
-  it('sends queue-limit reply when viewer has reached their limit', async () => {
+  it('emits sr_rejected when viewer has reached their queue limit', async () => {
     mockSettings({ 'music.enabled': true, 'music.srEnabled': true, 'music.srMaxQueuePerViewer': 1 });
     queue.countByUser.mockResolvedValue(1);
     await dispatchPlay('!play Test Song');
     expect(queue.add).not.toHaveBeenCalled();
-    expect(eventBus.emit).toHaveBeenCalledWith('chat.reply', expect.objectContaining({
-      message: expect.stringContaining('already have'),
+    expect(eventBus.emit).toHaveBeenCalledWith('event', expect.objectContaining({
+      type: 'music.sr_rejected',
+      data: expect.objectContaining({ reason: 'queue_limit' }),
     }));
   });
 

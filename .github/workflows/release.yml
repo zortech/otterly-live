@@ -9,7 +9,34 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libsecret-1-dev
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Server tests
+        run: npm run test:server
+
+      - name: Frontend tests
+        run: npm run test:frontend:ci
+
   build:
+    needs: test
     strategy:
       fail-fast: false
       matrix:

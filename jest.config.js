@@ -15,4 +15,5 @@ module.exports = {
   },
   clearMocks: true,
   restoreMocks: true,
+  forceExit: true,
 };
