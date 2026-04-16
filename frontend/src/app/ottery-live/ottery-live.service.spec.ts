@@ -7,21 +7,25 @@ import { OtteryLiveService } from './ottery-live.service';
 // ---------------------------------------------------------------------------
 
 class MockSocket extends EventEmitter {
-  on = jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+  override on = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
     super.on(event, cb);
     return this;
   });
-  emit = jest.fn((...args: unknown[]) => super.emit(args[0] as string, ...args.slice(1)));
-  off = jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+  override emit = vi.fn((...args: unknown[]) => super.emit(args[0] as string, ...args.slice(1)));
+  override off = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
     super.off(event, cb);
+    return this;
+  });
+  override removeAllListeners = vi.fn((event?: string) => {
+    super.removeAllListeners(event);
     return this;
   });
 }
 
 const mockSocket = new MockSocket();
 
-jest.mock('socket.io-client', () => ({
-  io: jest.fn(() => mockSocket),
+vi.mock('socket.io-client', () => ({
+  io: vi.fn(() => mockSocket),
 }));
 
 // ---------------------------------------------------------------------------
@@ -44,7 +48,7 @@ describe('OtteryLiveService', () => {
 
   beforeEach(() => {
     mockSocket.removeAllListeners();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     TestBed.configureTestingModule({});
     service = TestBed.inject(OtteryLiveService);

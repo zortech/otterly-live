@@ -13,13 +13,13 @@ import { DashboardComponent } from './dashboard.component';
 // ---------------------------------------------------------------------------
 
 class MockSocket {
-  on = jest.fn().mockReturnThis();
-  off = jest.fn().mockReturnThis();
-  emit = jest.fn();
+  on = vi.fn().mockReturnThis();
+  off = vi.fn().mockReturnThis();
+  emit = vi.fn();
 }
 const mockSocket = new MockSocket();
 
-jest.mock('socket.io-client', () => ({ io: jest.fn(() => mockSocket) }));
+vi.mock('socket.io-client', () => ({ io: vi.fn(() => mockSocket) }));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,8 +102,8 @@ describe('DashboardComponent computed signals', () => {
       expect(component.platformCards().length).toBe(0);
     });
 
-    it('excludes services where restream_enabled is false', () => {
-      streamSvc.services.set([makeStreamService({ id: 1, restream_enabled: false })]);
+    it('excludes services where both restream and capture are disabled', () => {
+      streamSvc.services.set([makeStreamService({ id: 1, restream_enabled: false, event_capture_enabled: false })]);
       expect(component.platformCards().length).toBe(0);
     });
 
@@ -128,47 +128,28 @@ describe('DashboardComponent computed signals', () => {
   // -------------------------------------------------------------------------
 
   describe('sessionStats()', () => {
-    it('counts follows correctly', () => {
-      otteryService.events.set([
-        makeEvent({ type: 'follow' }),
-        makeEvent({ type: 'follow' }),
-        makeEvent({ type: 'follow' }),
-      ]);
+    it('reflects follows from service signal', () => {
+      otteryService.sessionStats.set({ follows: 3, subs: 0, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
       expect(component.sessionStats().follows).toBe(3);
     });
 
-    it('counts subscribes correctly', () => {
-      otteryService.events.set([makeEvent({ type: 'subscribe' })]);
+    it('reflects subs from service signal', () => {
+      otteryService.sessionStats.set({ follows: 0, subs: 1, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
       expect(component.sessionStats().subs).toBe(1);
     });
 
-    it('sums gift subs using data.count', () => {
-      otteryService.events.set([
-        makeEvent({ type: 'subscribe.gift', data: { count: 5 } }),
-        makeEvent({ type: 'subscribe.gift', data: { count: 3 } }),
-      ]);
+    it('reflects giftSubs from service signal', () => {
+      otteryService.sessionStats.set({ follows: 0, subs: 0, giftSubs: 8, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
       expect(component.sessionStats().giftSubs).toBe(8);
     });
 
-    it('defaults gift sub count to 1 when data.count is missing', () => {
-      otteryService.events.set([makeEvent({ type: 'subscribe.gift', data: {} })]);
-      expect(component.sessionStats().giftSubs).toBe(1);
-    });
-
-    it('sums cheers using data.bits', () => {
-      otteryService.events.set([
-        makeEvent({ type: 'cheer', data: { bits: 100 } }),
-        makeEvent({ type: 'cheer', data: { bits: 200 } }),
-      ]);
+    it('reflects cheers from service signal', () => {
+      otteryService.sessionStats.set({ follows: 0, subs: 0, giftSubs: 0, cheers: 300, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
       expect(component.sessionStats().cheers).toBe(300);
     });
 
-    it('tracks peak viewers correctly', () => {
-      otteryService.events.set([
-        makeEvent({ type: 'viewer_count', data: { count: 50 } }),
-        makeEvent({ type: 'viewer_count', data: { count: 200 } }),
-        makeEvent({ type: 'viewer_count', data: { count: 100 } }),
-      ]);
+    it('reflects peakViewers from service signal', () => {
+      otteryService.sessionStats.set({ follows: 0, subs: 0, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 200, raids: 0, chatMessages: 0 });
       expect(component.sessionStats().peakViewers).toBe(200);
     });
   });
@@ -199,10 +180,10 @@ describe('DashboardComponent computed signals', () => {
       expect(filtered.every((e) => e.platform === 'kick')).toBe(true);
     });
 
-    it('caps results at 100 events', () => {
+    it('returns all events up to the service cap', () => {
       component.platformFilter.set('all');
       otteryService.events.set(Array.from({ length: 200 }, (_, i) => makeEvent({ id: `e${i}` })));
-      expect(component.filteredEvents().length).toBe(100);
+      expect(component.filteredEvents().length).toBe(200);
     });
   });
 
