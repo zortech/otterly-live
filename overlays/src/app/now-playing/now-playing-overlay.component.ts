@@ -58,9 +58,11 @@ interface QueueItem {
     :host {
       display: block;
       position: fixed;
-      top: 16px;
-      left: 16px;
-      width: 320px;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 16px;
+      box-sizing: border-box;
       pointer-events: none;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }

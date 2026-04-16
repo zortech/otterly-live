@@ -29,6 +29,7 @@ let playingQueueSpotifyId = null;  // Spotify track ID of the item we pushed (to
 let playingQueueRequester = null;  // { username, displayName, platform } or null — who requested it
 let _advancingQueue = false;       // Re-entrancy guard for advanceQueue()
 let activeSessionId = null;        // Current stream session ID (for queue scoping)
+const queueCommandLastUsed = new Map(); // platform:userId → timestamp, for !queue cooldown
 
 // Local settings cache
 let cfg = {
@@ -43,6 +44,9 @@ let cfg = {
   srBlockExplicit: true,
   srCommandReply: true,
   srShowRejectionInChat: false,
+  queueCommandEnabled: true,
+  queueCommandLimit: 5,
+  queueCommandCooldownMs: 30000,
   pollIntervalMs: 5000,
   songQueueRetentionDays: 180,
 };
@@ -84,6 +88,9 @@ async function refreshSettings() {
     srBlockExplicit:       (await settings.get('music.srBlockExplicit'))       ?? true,
     srCommandReply:        (await settings.get('music.srCommandReply'))        ?? true,
     srShowRejectionInChat: (await settings.get('music.srShowRejectionInChat')) ?? false,
+    queueCommandEnabled:   (await settings.get('music.queueCommandEnabled'))   ?? true,
+    queueCommandLimit:     (await settings.get('music.queueCommandLimit'))     ?? 5,
+    queueCommandCooldownMs: (await settings.get('music.queueCommandCooldownMs')) ?? 30000,
     pollIntervalMs:           (await settings.get('music.pollIntervalMs'))           ?? 5000,
     songQueueRetentionDays:   (await settings.get('music.songQueueRetentionDays'))   ?? 180,
   };
@@ -330,13 +337,22 @@ async function handleNowPlaying(e) {
 }
 
 async function handleQueueCommand(e) {
+  if (!cfg.queueCommandEnabled) return;
+
+  const cooldownKey = `${e.platform}:${e.actor?.platformId}`;
+  const now = Date.now();
+  const lastUsed = queueCommandLastUsed.get(cooldownKey) ?? 0;
+  if (now - lastUsed < cfg.queueCommandCooldownMs) return;
+  queueCommandLastUsed.set(cooldownKey, now);
+
   const items = await queue.getQueue();
   if (!items.length) {
     chatReply(e.platform, '🎵 The queue is empty.');
     return;
   }
-  const preview = items.slice(0, 5).map((i, idx) => `${idx + 1}. "${i.track_name}" – ${i.artist_name}`).join(' | ');
-  const more = items.length > 5 ? ` (+${items.length - 5} more)` : '';
+  const limit = cfg.queueCommandLimit;
+  const preview = items.slice(0, limit).map((i, idx) => `${idx + 1}. "${i.track_name}" – ${i.artist_name}`).join(' | ');
+  const more = items.length > limit ? ` (+${items.length - limit} more)` : '';
   chatReply(e.platform, `🎵 Queue: ${preview}${more}`);
 }
 
@@ -609,12 +625,12 @@ function handleChatEvent(e) {
   if (!parsed) return;
 
   // Log all music commands as soon as we see them, before any gate checks
-  if (['play', 'remove', 'undo', 'song', 'queue', 'skip'].includes(parsed.command)) {
+  if (['play', 'remove', 'undo', 'revoke', 'song', 'queue', 'skip'].includes(parsed.command)) {
     logger.info(`[music] command received: !${parsed.command} | args="${parsed.args}" | platform=${e.platform} | user=${e.actor?.username ?? '?'} | cfg.enabled=${cfg.enabled} | cfg.srEnabled=${cfg.srEnabled}`);
   }
 
   if (!cfg.enabled) {
-    if (['play', 'remove', 'undo', 'song', 'queue', 'skip'].includes(parsed.command)) {
+    if (['play', 'remove', 'undo', 'revoke', 'song', 'queue', 'skip'].includes(parsed.command)) {
       logger.warn(`[music] ignoring !${parsed.command} — music feature is disabled (music.enabled=false)`);
     }
     return;
@@ -625,7 +641,8 @@ function handleChatEvent(e) {
   switch (parsed.command) {
     case 'play':    handleSongRequest(enriched).catch((err) => logger.error('[music] !play error', err)); break;
     case 'remove':
-    case 'undo':    handleRemove(enriched).catch((err) => logger.error('[music] !remove error', err)); break;
+    case 'undo':
+    case 'revoke':  handleRemove(enriched).catch((err) => logger.error('[music] !remove error', err)); break;
     case 'song':    handleNowPlaying(enriched).catch((err) => logger.error('[music] !song error', err)); break;
     case 'queue':   handleQueueCommand(enriched).catch((err) => logger.error('[music] !queue error', err)); break;
     case 'skip':    handleSkip(enriched).catch((err) => logger.error('[music] !skip error', err)); break;

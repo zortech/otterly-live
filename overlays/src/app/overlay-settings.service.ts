@@ -19,6 +19,12 @@ const KEY_HIDDEN               = 'overlay.chat.hiddenPlatforms';
 const KEY_FONT_SIZE            = 'overlay.chat.fontSize';
 const KEY_MAX_MESSAGES         = 'overlay.chat.maxMessages';
 const KEY_NOTIFICATION_FILTERS = 'overlay.chat.notificationFilters';
+const KEY_TEST_PATTERN         = 'overlay.chat.testPattern';
+const KEY_EXIT_ANIMATION       = 'overlay.chat.exitAnimation';
+
+export type ExitAnimation =
+  'slide-left' | 'slide-right' | 'slide-up' |
+  'dissolve' | 'shrink' | 'flip' | 'blur-out';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -41,6 +47,8 @@ export class OverlaySettingsService {
   readonly hiddenPlatforms = signal<Set<string>>(new Set());
   readonly fontSize        = signal<number>(14);
   readonly maxMessages     = signal<number>(30);
+  readonly testPattern     = signal<boolean>(true);
+  readonly exitAnimation   = signal<ExitAnimation>('slide-left');
 
   // platform → Set of DISABLED notification event types (empty Set = all enabled)
   readonly notificationFilters = signal<Record<string, Set<string>>>({});
@@ -74,6 +82,10 @@ export class OverlaySettingsService {
       this.fontSize.set(Number(s[KEY_FONT_SIZE]));
     if (s[KEY_MAX_MESSAGES] != null)
       this.maxMessages.set(Number(s[KEY_MAX_MESSAGES]));
+    if (s[KEY_TEST_PATTERN] != null)
+      this.testPattern.set(Boolean(s[KEY_TEST_PATTERN]));
+    if (s[KEY_EXIT_ANIMATION] != null)
+      this.exitAnimation.set(s[KEY_EXIT_ANIMATION] as ExitAnimation);
     if (s[KEY_NOTIFICATION_FILTERS] != null) {
       const raw = s[KEY_NOTIFICATION_FILTERS] as Record<string, string[]>;
       const filters: Record<string, Set<string>> = {};

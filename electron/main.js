@@ -216,6 +216,7 @@ function handleOAuthCallback(url) {
 const ALLOWED_OAUTH_ORIGINS = [
   'id.twitch.tv',
   'www.twitch.tv',
+  'twitch.tv',
   'id.kick.com',
   'accounts.google.com',
   'accounts.spotify.com',
@@ -225,14 +226,16 @@ const ALLOWED_OAUTH_ORIGINS = [
 ipcMain.handle('open-external', async (_event, url) => {
   try {
     const parsed = new URL(url);
-    if (!['https:', 'http:'].includes(parsed.protocol)) return;
+    if (!['https:', 'http:'].includes(parsed.protocol)) return false;
     const allowed = ALLOWED_OAUTH_ORIGINS.some(
       (o) => parsed.hostname === o || parsed.hostname.endsWith('.' + o)
     );
-    if (!allowed) return;
+    if (!allowed) return false;
     await shell.openExternal(url);
-  } catch {
-    // Invalid URL — ignore
+    return true;
+  } catch (err) {
+    console.error('[open-external] failed to open URL:', err.message);
+    return false;
   }
 });
 

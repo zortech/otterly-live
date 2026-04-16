@@ -13,6 +13,7 @@ const KEY_PLATFORM = 'overlay.goalSingle.platform';
 const KEY_METRIC   = 'overlay.goalSingle.metric';
 const KEY_TARGET   = 'overlay.goalSingle.target';
 const KEY_LABEL    = 'overlay.goalSingle.label';
+const KEY_CURRENT  = 'overlay.goalSingle.current';
 const POLL_MS      = 30_000;
 
 @Component({
@@ -59,9 +60,8 @@ const POLL_MS      = 30_000;
     :host {
       display: block;
       position: fixed;
-      top: 16px;
-      left: 16px;
-      width: 360px;
+      inset: 0;
+      padding: 16px;
       pointer-events: none;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
@@ -488,6 +488,7 @@ export class GoalSingleOverlayComponent implements OnInit, OnDestroy {
   readonly otterLeft   = computed(() => Math.max(3, Math.min(97, this.pct())));
 
   private _poll: ReturnType<typeof setInterval> | null = null;
+  private _saveTid: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
     this._fetchSettings();
@@ -495,6 +496,12 @@ export class GoalSingleOverlayComponent implements OnInit, OnDestroy {
 
     this.socket.socket.on('ottery:overlay-settings', (s: Record<string, unknown>) => {
       this._applySettings(s);
+    });
+
+    // Explicit current-count update from the Interfaces UI (set or reset)
+    this.socket.socket.on('ottery:goal-single-current', (d: { current: number }) => {
+      if (this._saveTid !== null) { clearTimeout(this._saveTid); this._saveTid = null; }
+      this.current.set(d.current);
     });
 
     this.socket.socket.on('ottery:event', (e: { platform: string; type: string; data: Record<string, unknown> }) => {
@@ -506,15 +513,20 @@ export class GoalSingleOverlayComponent implements OnInit, OnDestroy {
       if (e.type === 'cheer' && typeof e.data?.['bits']   === 'number') inc = e.data['bits']   as number;
       if (e.type === 'tip'   && typeof e.data?.['amount'] === 'number') inc = e.data['amount'] as number;
       this.current.update(v => v + inc);
+      this._scheduleSaveCurrent();
     });
 
     this.socket.socket.on('ottery:session', (d: { state: string }) => {
-      if (d.state === 'idle') this.current.set(0);
+      if (d.state === 'ended') {
+        this.current.set(0);
+        this._scheduleSaveCurrent();
+      }
     });
   }
 
   ngOnDestroy(): void {
-    if (this._poll !== null) clearInterval(this._poll);
+    if (this._poll  !== null) clearInterval(this._poll);
+    if (this._saveTid !== null) clearTimeout(this._saveTid);
   }
 
   private async _fetchSettings(): Promise<void> {
@@ -525,11 +537,24 @@ export class GoalSingleOverlayComponent implements OnInit, OnDestroy {
     } catch { this.loaded.set(true); }
   }
 
+  private _scheduleSaveCurrent(): void {
+    if (this._saveTid !== null) clearTimeout(this._saveTid);
+    this._saveTid = setTimeout(() => {
+      this._saveTid = null;
+      this.http.put('/api/settings', { key: KEY_CURRENT, value: this.current() }).subscribe();
+    }, 500);
+  }
+
   private _applySettings(s: Record<string, unknown>): void {
     if (s[KEY_THEME]    != null) this.theme.set((s[KEY_THEME]    as GoalTheme)    || 'simple');
     if (s[KEY_PLATFORM] != null) this.platform.set((s[KEY_PLATFORM] as GoalPlatform) || 'all');
     if (s[KEY_METRIC]   != null) this.metric.set((s[KEY_METRIC]   as GoalMetric)   || 'follow');
     if (s[KEY_TARGET]   != null) this.target.set(Number(s[KEY_TARGET]) || 100);
     if (s[KEY_LABEL]    != null) this.label.set(String(s[KEY_LABEL] ?? ''));
+    // Restore persisted count only on initial load — polls and broadcasts must not
+    // overwrite in-memory tracking. Explicit resets come via ottery:goal-single-current.
+    if (!this.loaded() && s[KEY_CURRENT] != null && this._saveTid === null) {
+      this.current.set(Number(s[KEY_CURRENT]) || 0);
+    }
   }
 }

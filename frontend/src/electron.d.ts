@@ -1,6 +1,6 @@
 interface OtteryElectronBridge {
   serverPort: number;
-  openExternal(url: string): Promise<void>;
+  openExternal(url: string): Promise<boolean>;
   getVersion(): Promise<string>;
   checkForUpdates(): Promise<void>;
   onOAuthCallback(callback: (url: string) => void): void;

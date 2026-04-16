@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dev-data/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+*.db
+*.db-shm
+*.db-wal
+.angular/

@@ -93,7 +93,9 @@ html, body {
 
 /* All text field inputs and textareas */
 .mdc-text-field input,
-.mdc-text-field textarea {
+.mdc-text-field textarea,
+input.mdc-text-field__input,
+textarea.mdc-text-field__input {
   color: var(--text-1) !important;
   caret-color: var(--accent) !important;
 }
@@ -228,9 +230,17 @@ html, body {
   background: var(--bg-hover) !important;
 }
 
+.mat-mdc-raised-button.mat-primary:not([disabled]),
 .mat-mdc-raised-button[color="primary"]:not([disabled]) {
   --mdc-filled-button-container-color: var(--accent) !important;
   --mdc-filled-button-label-text-color: #000 !important;
+  background-color: var(--accent) !important;
+  color: #000 !important;
+}
+
+.mat-mdc-raised-button.mat-primary:not([disabled]) .mdc-button__label,
+.mat-mdc-raised-button[color="primary"]:not([disabled]) .mdc-button__label {
+  color: #000 !important;
 }
 
 .mat-mdc-icon-button { color: var(--text-2) !important; }
@@ -265,7 +275,13 @@ html, body {
 
 mat-divider { border-color: var(--border) !important; }
 
-.mat-mdc-form-field-hint { color: var(--text-2) !important; }
+.mat-mdc-form-field-hint,
+.mat-mdc-form-field-hint-wrapper,
+.mat-mdc-form-field-subscript-wrapper,
+mat-hint,
+mat-hint span {
+  color: var(--text-2) !important;
+}
 
 .mat-mdc-select-value { color: var(--text-1) !important; }
 .mat-mdc-select-arrow { color: var(--text-2) !important; }

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -100,7 +100,7 @@ const HIGHLIGHT_TYPES: EventType[] = [
     .chat-msg {
       color: var(--text-1); word-break: break-word; min-width: 0;
     }
-    .chat-msg :global(img.chat-emote) {
+    .chat-msg ::ng-deep img.chat-emote {
       height: 1.3em; vertical-align: middle; display: inline; margin: 0 1px;
     }
 
@@ -173,9 +173,7 @@ const HIGHLIGHT_TYPES: EventType[] = [
 
         <div class="chat-scroll" #chatScroll (scroll)="onChatScroll($event)">
           @if (chatEvents().length === 0) {
-            <p class="empty-msg">
-              {{ service.sessionState() === 'idle' ? 'Waiting for stream to start…' : 'No chat messages yet.' }}
-            </p>
+            <p class="empty-msg">No chat messages yet.</p>
           } @else {
             @for (e of chatEvents(); track e.id) {
               <div class="chat-row">
@@ -222,7 +220,7 @@ const HIGHLIGHT_TYPES: EventType[] = [
     </div>
   `,
 })
-export class ChatComponent implements OnInit {
+export class ChatComponent implements OnInit, AfterViewInit {
   @ViewChild('chatScroll') private chatScrollRef?: ElementRef<HTMLElement>;
 
   protected readonly service = inject(OtteryLiveService);
@@ -270,6 +268,11 @@ export class ChatComponent implements OnInit {
     });
 
     this.streamSvc.loadAll().catch(() => {});
+  }
+
+  ngAfterViewInit(): void {
+    const el = this.chatScrollRef?.nativeElement;
+    if (el) el.scrollTop = el.scrollHeight;
   }
 
   async ngOnInit(): Promise<void> {

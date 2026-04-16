@@ -206,6 +206,11 @@ async function startServer() {
           Object.entries(all).filter(([k]) => k.startsWith('overlay.'))
         );
         io.emit('ottery:overlay-settings', overlaySettings);
+        // Explicit current-count change — targeted event so overlay can apply it
+        // even after initial load without being confused with stale broadcast values
+        if (key === 'overlay.goalSingle.current') {
+          io.emit('ottery:goal-single-current', { current: value });
+        }
       }
       res.json({ ok: true });
     } catch (err) {
@@ -355,6 +360,8 @@ async function startServer() {
   });
 
   await rtmpManager.start();
+  // Start event capture immediately so chat/events work before going live
+  await eventCaptureManager.startForAll();
   await creditEngine.start();
   await musicManager.start();
   otteryNotifications.start();

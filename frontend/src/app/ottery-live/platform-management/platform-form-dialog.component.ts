@@ -11,7 +11,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { StreamService, StreamServicesService } from '../stream-services.service';
 import { OtteryLiveService } from '../ottery-live.service';
@@ -39,11 +39,8 @@ export interface PlatformFormDialogData {
   styles: [`
     /* ── Dialog shell ───────────────────────────────────────────────── */
     mat-dialog-content {
-      min-width: 600px;
-      max-width: 660px;
+      width: 100%;
       padding: 0 24px 16px !important;
-      max-height: 70vh !important;
-      overflow-y: auto;
       overflow-x: hidden;
     }
 
@@ -506,6 +503,11 @@ export interface PlatformFormDialogData {
       gap: 8px;
     }
 
+    mat-dialog-actions button[mat-stroked-button] {
+      color: var(--text-1);
+      border-color: var(--border-2);
+    }
+
     /* ── GCP hint ───────────────────────────────────────────────────── */
     .gcp-hint {
       background: var(--bg-raised);
@@ -836,6 +838,9 @@ export interface PlatformFormDialogData {
               @if (oauthStep() === 'polling') {
                 @if (oauthCode()) {
                   <div class="dcf-box">
+                    @if (!oauthBrowserOpened()) {
+                      <p class="oauth-error" style="margin-top:0">Could not open browser automatically — please navigate manually:</p>
+                    }
                     <p>1. Go to <strong>{{ oauthVerifyUrl() }}</strong> in your browser</p>
                     <p>2. Enter code: <span class="dcf-code">{{ oauthCode() }}</span></p>
                     <div class="dcf-waiting"><mat-spinner diameter="16" /><span>Waiting for authorization…</span></div>
@@ -1025,14 +1030,16 @@ export interface PlatformFormDialogData {
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary"
-              [disabled]="saving() || form.invalid || (!isEdit() && !form.controls.platform.value)"
-              (click)="submit()">
-        @if (saving()) { Saving… }
-        @else if (isEdit()) { Save Changes }
-        @else { Add Platform }
-      </button>
+      <button mat-stroked-button mat-dialog-close>Cancel</button>
+      @if (isEdit() || form.controls.platform.value) {
+        <button mat-raised-button color="primary"
+                [disabled]="saving() || form.invalid"
+                (click)="submit()">
+          @if (saving()) { Saving… }
+          @else if (isEdit()) { Save Changes }
+          @else { Add Platform }
+        </button>
+      }
     </mat-dialog-actions>
   `,
 })
@@ -1053,6 +1060,7 @@ export class PlatformFormDialogComponent {
   readonly oauthCode = signal<string | null>(null);
   readonly oauthVerifyUrl = signal<string | null>(null);
   readonly oauthError = signal<string | null>(null);
+  readonly oauthBrowserOpened = signal<boolean>(true);
 
   readonly kickOAuthStep = signal<'idle' | 'waiting' | 'complete' | 'error'>('idle');
   readonly kickOAuthError = signal<string | null>(null);
@@ -1208,6 +1216,7 @@ export class PlatformFormDialogComponent {
     this.oauthStep.set('polling');
     this.oauthCode.set(null);
     this.oauthError.set(null);
+    this.oauthBrowserOpened.set(true);
     const serviceId = this.data.service!.id;
 
     try {
@@ -1223,8 +1232,11 @@ export class PlatformFormDialogComponent {
       this.oauthCode.set(result.user_code);
       this.oauthVerifyUrl.set(result.verification_uri);
 
-      const electronApi = (window as Window & { otteryElectron?: { openExternal?: (url: string) => void } }).otteryElectron;
-      electronApi?.openExternal?.(result.verification_uri);
+      const electronApi = (window as Window & { otteryElectron?: { openExternal?: (url: string) => Promise<boolean> } }).otteryElectron;
+      if (electronApi?.openExternal) {
+        const opened = await electronApi.openExternal(result.verification_uri).catch(() => false);
+        this.oauthBrowserOpened.set(opened);
+      }
 
       const onOAuthEvent = (msg: { event: string; serviceId: number; reason?: string }) => {
         if (msg.serviceId !== serviceId) return;
@@ -1244,7 +1256,12 @@ export class PlatformFormDialogComponent {
       });
     } catch (err: unknown) {
       this.oauthStep.set('error');
-      const msg = err instanceof Error ? err.message : 'Failed to start OAuth flow';
+      let msg = 'Failed to start OAuth flow';
+      if (err instanceof HttpErrorResponse) {
+        msg = err.error?.error || err.error?.message || err.statusText || msg;
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       this.oauthError.set(msg);
     }
   }

@@ -152,14 +152,14 @@ export class PlatformManagementComponent implements OnInit {
   openAdd(): void {
     this.dialog.open<PlatformFormDialogComponent, PlatformFormDialogData>(
       PlatformFormDialogComponent,
-      { width: '560px', data: { service: null } }
+      { width: '660px', maxHeight: '90vh', data: { service: null } }
     );
   }
 
   openEdit(service: StreamService): void {
     this.dialog.open<PlatformFormDialogComponent, PlatformFormDialogData>(
       PlatformFormDialogComponent,
-      { width: '560px', data: { service } }
+      { width: '660px', maxHeight: '90vh', data: { service } }
     );
   }
 

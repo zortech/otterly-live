@@ -37,6 +37,9 @@ const KEY_HIDDEN               = 'overlay.chat.hiddenPlatforms';
 const KEY_FONT_SIZE            = 'overlay.chat.fontSize';
 const KEY_MAX_MESSAGES         = 'overlay.chat.maxMessages';
 const KEY_NOTIFICATION_FILTERS = 'overlay.chat.notificationFilters';
+const KEY_TEST_PATTERN         = 'overlay.chat.testPattern';
+
+const KEY_EXIT_ANIMATION       = 'overlay.chat.exitAnimation';
 
 const KEY_MQ_MAX_ITEMS        = 'overlay.musicQueue.maxItems';
 const KEY_MQ_SHOW_NOW_PLAYING = 'overlay.musicQueue.showNowPlaying';
@@ -53,6 +56,7 @@ const KEY_GS_PLATFORM = 'overlay.goalSingle.platform';
 const KEY_GS_METRIC   = 'overlay.goalSingle.metric';
 const KEY_GS_TARGET   = 'overlay.goalSingle.target';
 const KEY_GS_LABEL    = 'overlay.goalSingle.label';
+const KEY_GS_CURRENT  = 'overlay.goalSingle.current';
 
 const KEY_GM_THEME = 'overlay.goalMulti.theme';
 const KEY_GM_GOALS = 'overlay.goalMulti.goals';
@@ -379,6 +383,19 @@ type SettingsTab = 'colors' | 'display' | 'platforms';
                   <span class="field-hint">How long before old messages fade out</span>
                 </div>
                 <div class="field-group">
+                  <span class="field-label">Exit animation</span>
+                  <select class="field-input" [ngModel]="exitAnimation()" (ngModelChange)="setExitAnimation($event)">
+                    <option value="slide-left">Slide left</option>
+                    <option value="slide-right">Slide right</option>
+                    <option value="slide-up">Slide up</option>
+                    <option value="dissolve">Dissolve (fade only)</option>
+                    <option value="shrink">Shrink</option>
+                    <option value="flip">Flip away</option>
+                    <option value="blur-out">Blur out</option>
+                  </select>
+                  <span class="field-hint">How messages disappear when they fade out or are pushed off screen</span>
+                </div>
+                <div class="field-group">
                   <span class="field-label">Font size</span>
                   <input class="field-input" type="number" min="10" max="32" step="1"
                     [ngModel]="fontSize()" (ngModelChange)="setFontSize($event)" />
@@ -389,6 +406,16 @@ type SettingsTab = 'colors' | 'display' | 'platforms';
                   <input class="field-input" type="number" min="5" max="100" step="5"
                     [ngModel]="maxMessages()" (ngModelChange)="setMaxMessages($event)" />
                   <span class="field-hint">Oldest messages are removed when limit is reached</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Test pattern</span>
+                  <select class="field-input"
+                    [ngModel]="testPattern()"
+                    (ngModelChange)="setTestPattern($event === 'true' || $event === true)">
+                    <option [value]="true">Show when not live</option>
+                    <option [value]="false">Always blank</option>
+                  </select>
+                  <span class="field-hint">Displays sample messages for positioning in OBS when you're not streaming</span>
                 </div>
               </div>
             }
@@ -692,6 +719,17 @@ type SettingsTab = 'colors' | 'display' | 'platforms';
                 </div>
 
               </div>
+
+              <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+                <span style="font-size:12px; color:var(--text-2); white-space:nowrap;">Current count</span>
+                <input class="field-input" type="number" min="0" style="width:80px; padding:5px 8px; font-size:13px;"
+                  [ngModel]="gsCurrentCount()" (ngModelChange)="setGsCurrent(+$event)" />
+                <button class="copy-btn" (click)="resetGsCount()" style="color:var(--warn,#ef4444); border-color:var(--warn-border,rgba(239,68,68,0.35)); margin-left:auto;">
+                  <mat-icon style="font-size:14px;width:14px;height:14px;">restart_alt</mat-icon>
+                  Reset
+                </button>
+              </div>
+
             </div>
           </div>
         }
@@ -820,6 +858,8 @@ export class InterfacesComponent implements OnInit {
   readonly maxMessages         = signal<number>(30);
   readonly hiddenPlatforms     = signal<Set<string>>(new Set<string>());
   readonly notificationFilters = signal<Record<string, Set<string>>>({});
+  readonly testPattern         = signal<boolean>(true);
+  readonly exitAnimation       = signal<string>('slide-left');
 
   // Music Queue overlay
   readonly musicQueueUrl  = signal('http://localhost:3737/overlays/music-queue');
@@ -848,6 +888,7 @@ export class InterfacesComponent implements OnInit {
   readonly gsMetric           = signal<string>('follow');
   readonly gsTarget           = signal<number>(100);
   readonly gsLabel            = signal<string>('');
+  readonly gsCurrentCount     = signal<number>(0);
 
   // Goal Multi overlay
   readonly goalMultiUrl       = signal('http://localhost:3737/overlays/goal-multi');
@@ -886,6 +927,10 @@ export class InterfacesComponent implements OnInit {
         }
         this.notificationFilters.set(filters);
       }
+      if (s[KEY_TEST_PATTERN] != null)
+        this.testPattern.set(Boolean(s[KEY_TEST_PATTERN]));
+      if (s[KEY_EXIT_ANIMATION] != null)
+        this.exitAnimation.set(String(s[KEY_EXIT_ANIMATION]));
       if (s[KEY_MQ_MAX_ITEMS] != null)        this.mqMaxItems.set(Number(s[KEY_MQ_MAX_ITEMS]));
       if (s[KEY_MQ_SHOW_NOW_PLAYING] != null) this.mqShowNowPlaying.set(Boolean(s[KEY_MQ_SHOW_NOW_PLAYING]));
       if (s[KEY_MQ_SHOW_REQUESTERS] != null)  this.mqShowRequesters.set(Boolean(s[KEY_MQ_SHOW_REQUESTERS]));
@@ -899,6 +944,7 @@ export class InterfacesComponent implements OnInit {
       if (s[KEY_GS_METRIC]   != null) this.gsMetric.set(String(s[KEY_GS_METRIC]));
       if (s[KEY_GS_TARGET]   != null) this.gsTarget.set(Number(s[KEY_GS_TARGET]) || 100);
       if (s[KEY_GS_LABEL]    != null) this.gsLabel.set(String(s[KEY_GS_LABEL] ?? ''));
+      if (s[KEY_GS_CURRENT]  != null) this.gsCurrentCount.set(Number(s[KEY_GS_CURRENT]) || 0);
       if (s[KEY_GM_THEME]    != null) this.gmTheme.set(String(s[KEY_GM_THEME]));
       if (s[KEY_GM_GOALS]    != null) {
         const raw = s[KEY_GM_GOALS] as GoalEntry[];
@@ -939,6 +985,16 @@ export class InterfacesComponent implements OnInit {
     const v = Math.max(5, Math.min(100, Number(value)));
     this.maxMessages.set(v);
     this.settingsSvc.set(KEY_MAX_MESSAGES, v);
+  }
+
+  setTestPattern(value: boolean): void {
+    this.testPattern.set(value);
+    this.settingsSvc.set(KEY_TEST_PATTERN, value);
+  }
+
+  setExitAnimation(value: string): void {
+    this.exitAnimation.set(value);
+    this.settingsSvc.set(KEY_EXIT_ANIMATION, value);
   }
 
   togglePlatform(platform: string): void {
@@ -1058,6 +1114,15 @@ export class InterfacesComponent implements OnInit {
     const n = Math.max(1, Number(v) || 100);
     this.gsTarget.set(n);
     this.settingsSvc.set(KEY_GS_TARGET, n);
+  }
+  setGsCurrent(v: number): void {
+    const n = Math.max(0, Number(v) || 0);
+    this.gsCurrentCount.set(n);
+    this.settingsSvc.set(KEY_GS_CURRENT, n);
+  }
+
+  resetGsCount(): void {
+    this.setGsCurrent(0);
   }
 
   // ── Goal Multi ─────────────────────────────────────────────────────────
