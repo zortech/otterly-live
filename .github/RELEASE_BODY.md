@@ -26,6 +26,9 @@
 - `!revoke` added as an alias for `!remove` / `!undo`
 - `!queue` command is now configurable: enable/disable, item limit, per-user cooldown
 
+### CI / Build
+- Removed invalid `--browsers=ChromeHeadless` flag from the frontend CI test script — Vitest 4 with jsdom environment doesn't use browser providers
+
 ### Other Fixes
 - Event capture starts immediately on server startup — chat and events work before going live
 - `open-external` IPC handler now returns a boolean success value and logs errors
