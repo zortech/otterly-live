@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   test:
@@ -108,6 +109,33 @@ jobs:
             dist/installers/*.AppImage
             dist/installers/*.deb
           if-no-files-found: warn
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ottery-relay
+          push: true
+          tags: |
+            ghcr.io/zortech/otterly-live/ottery-relay:latest
+            ghcr.io/zortech/otterly-live/ottery-relay:${{ steps.version.outputs.version }}
 
   release:
     needs: build

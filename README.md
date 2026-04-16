@@ -107,6 +107,57 @@ electron-builder is pinned to `23.6.0`. Versions >= 25.1.8 have a confirmed bug 
 
 ---
 
+## Remote Relay (Ottery Relay)
+
+If your upstream bandwidth can't handle streaming to multiple platforms at once, you can offload the fan-out to a remote server. Your local Ottery Live sends **one** stream to the relay, and the relay pushes it to all your platforms from a server with more bandwidth.
+
+```
+OBS --> Ottery Live (your PC) --1 stream--> Relay Server --N streams--> Twitch, YouTube, Kick, ...
+```
+
+### Running the Relay
+
+The relay is available as a Docker image:
+
+```bash
+docker pull ghcr.io/zortech/otterly-live/ottery-relay:latest
+docker compose -f ottery-relay/docker-compose.yml up -d
+```
+
+On first boot the relay creates an `owner` account and prints the API token to the logs:
+
+```bash
+docker compose -f ottery-relay/docker-compose.yml logs relay | grep "Token"
+```
+
+### Managing Users
+
+The relay is designed for a small trusted group (you and a few friends splitting server costs). Users are managed via CLI — there is no web signup:
+
+```bash
+docker compose exec relay node cli.js add-user alice
+docker compose exec relay node cli.js list-users
+docker compose exec relay node cli.js remove-user bob
+docker compose exec relay node cli.js rotate-token alice
+```
+
+### Connecting Ottery Live to the Relay
+
+1. Open **Settings** > **Restream Mode** in Ottery Live
+2. Select **Remote**
+3. Enter your relay server URL (e.g. `https://relay.example.com:3800`)
+4. Paste your API token and click **Verify**
+
+Once connected, start streaming in OBS as usual. Ottery Live handles the rest — it sends one stream to the relay and you'll see per-platform status in the dashboard with a "via relay" badge.
+
+### Self-Hosting Requirements
+
+A cheap cloud VM handles 2-3 users streaming to 4 platforms each at 6 Mb/s comfortably. Bandwidth is the main constraint — FFmpeg uses `-c copy` (no transcoding), so CPU usage is negligible.
+
+See [`ottery-relay/README.md`](ottery-relay/README.md) for full configuration and API details, or [`docs/REMOTE_RELAY.md`](docs/REMOTE_RELAY.md) for the complete architecture and security model.
+
+---
+
 ## Testing
 
 ```bash
