@@ -22,7 +22,7 @@
     "postinstall": "node scripts/rebuild-native.js && npm install --prefix overlays --ignore-scripts",
     "test:server": "jest --testPathPattern=server/",
     "test:frontend": "cd frontend && ng test",
-    "test:frontend:ci": "cd frontend && ng test --watch=false --browsers=ChromeHeadless",
+    "test:frontend:ci": "cd frontend && npx ng test --watch=false --browsers=ChromeHeadless",
     "test:e2e": "playwright test",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
