@@ -46,10 +46,13 @@ jobs:
         include:
           - os: windows-latest
             platform: win
+            node-version: 22
           - os: macos-latest
             platform: mac
+            node-version: 25
           - os: ubuntu-latest
             platform: linux
+            node-version: 25
 
     runs-on: ${{ matrix.os }}
 
@@ -58,7 +61,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Install dependencies (Linux)
