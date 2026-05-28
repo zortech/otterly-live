@@ -8,6 +8,7 @@ const KEYCHAIN_KEYS = new Set(['rtmp.incomingKey', 'streamtap.authToken', 'relay
 const DEFAULTS = {
   'rtmp.port': 1935,
   'server.port': 3737,
+  'server.bindAddress': '127.0.0.1',
   'stream.autoStartOnOBSConnect': true,
   'stream.stopCaptureOnStreamEnd': false,
   'app.minimizeToTray': true,

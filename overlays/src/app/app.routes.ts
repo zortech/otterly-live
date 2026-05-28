@@ -26,5 +26,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./goal/goal-multi-overlay.component').then((m) => m.GoalMultiOverlayComponent),
   },
+  {
+    path: 'gift-alerts',
+    loadComponent: () =>
+      import('./gift-alerts/gift-alerts-overlay.component').then((m) => m.GiftAlertsOverlayComponent),
+  },
   { path: '', redirectTo: 'chat', pathMatch: 'full' },
 ];

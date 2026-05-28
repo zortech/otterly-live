@@ -41,6 +41,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'gift-alerts',
+        loadComponent: () =>
+          import('./ottery-live/gift-alerts/gift-alerts.component').then(
+            (m) => m.GiftAlertsComponent
+          ),
+      },
+      {
         path: 'credits',
         loadComponent: () =>
           import('./ottery-live/credits/credits.component').then(

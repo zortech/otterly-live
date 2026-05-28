@@ -47,6 +47,23 @@ export interface PlatformStatus {
   status: 'live' | 'stopped' | 'error' | 'connecting';
   reason?: string;
   type?: 'capture' | 'restream';
+  startedAt?: number;
+}
+
+export interface PlatformProgress {
+  serviceId: number;
+  platform?: string;
+  frames: number;
+  dropped: number;
+  // Receive time on the client — used together with previous sample to compute drop rate.
+  receivedAt: number;
+}
+
+export interface PlatformWarning {
+  serviceId: number;
+  platform?: string;
+  message: string;
+  at: number;
 }
 
 export interface AuthRequired {
@@ -55,8 +72,10 @@ export interface AuthRequired {
 }
 
 export interface RelaySocketEvent {
-  event: 'streamReceived' | 'fallback';
+  event:   'streamReceived' | 'connected' | 'reconnecting' | 'error';
   reason?: string;
+  attempt?: number;
+  delayMs?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +90,13 @@ export class OtteryLiveService {
   readonly sessionStats = signal<SessionStats>({ follows: 0, subs: 0, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
   readonly liveViewers = signal<Record<string, number>>({});
   readonly relayStatus = signal<RelaySocketEvent | null>(null);
+  // Latest progress sample per serviceId. Previous sample lives in _prevProgress
+  // so drop *rate* can be derived; readers see only the latest signal value.
+  readonly platformProgress = signal<Record<number, PlatformProgress>>({});
+  readonly platformProgressPrev = signal<Record<number, PlatformProgress>>({});
+  // Per-serviceId warning history (newest first, capped). Cleared when the
+  // session ends so a fresh stream starts clean.
+  readonly platformWarnings = signal<Record<number, PlatformWarning[]>>({});
 
   readonly socket: Socket;
 
@@ -108,6 +134,9 @@ export class OtteryLiveService {
           this.platformStatuses.set({});
           this.sessionStats.set({ follows: 0, subs: 0, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
           this.liveViewers.set({});
+          this.platformProgress.set({});
+          this.platformProgressPrev.set({});
+          this.platformWarnings.set({});
         }
       }
     );
@@ -115,6 +144,31 @@ export class OtteryLiveService {
     this.socket.on('ottery:stats', (d: SessionStats) => this.sessionStats.set(d));
     this.socket.on('ottery:viewers', (d: Record<string, number>) => this.liveViewers.set(d));
     this.socket.on('ottery:relay', (d: RelaySocketEvent) => this.relayStatus.set(d));
+
+    this.socket.on(
+      'ottery:progress',
+      (d: { serviceId: number; platform?: string; frames: number; dropped: number }) => {
+        const sample: PlatformProgress = { ...d, receivedAt: Date.now() };
+        // Move the current latest sample into "prev" so rate is computed against it.
+        const prev = this.platformProgress()[d.serviceId];
+        if (prev) {
+          this.platformProgressPrev.update((s) => ({ ...s, [d.serviceId]: prev }));
+        }
+        this.platformProgress.update((s) => ({ ...s, [d.serviceId]: sample }));
+      }
+    );
+
+    this.socket.on(
+      'ottery:warning',
+      (d: { serviceId: number; platform?: string; message: string; at: number }) => {
+        this.platformWarnings.update((s) => {
+          const prev = s[d.serviceId] ?? [];
+          // Cap per-platform warning history at 50 entries to bound memory.
+          const next = [{ ...d }, ...prev].slice(0, 50);
+          return { ...s, [d.serviceId]: next };
+        });
+      }
+    );
 
     this.socket.on('ottery:auth', (d: AuthRequired) => {
       if (d.serviceId) {

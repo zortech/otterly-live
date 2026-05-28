@@ -1,6 +1,6 @@
 {
   "name": "ottery-live",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Multi-platform live streaming desktop app",
   "author": {
     "name": "Zor",
@@ -19,7 +19,8 @@
     "build:overlays": "cd overlays && npx ng build",
     "build": "npm run build:frontend && npm run build:overlays",
     "electron:rebuild": "node scripts/rebuild-native.js",
-    "postinstall": "node scripts/rebuild-native.js && npm install --prefix overlays --ignore-scripts",
+    "node:rebuild": "npm rebuild better-sqlite3",
+    "postinstall": "npm install --prefix overlays --ignore-scripts",
     "test:server": "jest --testPathPattern=server/",
     "test:frontend": "cd frontend && ng test",
     "test:frontend:ci": "cd frontend && npx ng test --watch=false",
@@ -47,6 +48,7 @@
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
     "tiktok-live-connector": "^2.1.1-beta1",
+    "undici": "^8.1.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

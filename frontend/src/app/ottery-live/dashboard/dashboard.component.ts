@@ -127,6 +127,38 @@ import { StreamService } from '../stream-services.service';
     .pc-status.error      { color: var(--error-color); }
     .pc-status.connecting { color: var(--warn-color); }
 
+    .pc-metrics {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+    }
+    .pc-metric {
+      font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px;
+      background: rgba(255,255,255,0.04); color: var(--text-2);
+      letter-spacing: 0.2px;
+    }
+    .pc-metric.uptime { color: var(--text-2); }
+    .pc-metric.drops { color: var(--text-2); }
+    .pc-metric.drops.active {
+      background: rgba(255,71,87,0.12); color: var(--error-color);
+    }
+    .pc-metric.warn-chip {
+      background: rgba(255,193,7,0.10); color: var(--warn-color, #ffb300);
+      border: none; cursor: pointer; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .pc-metric.warn-chip:hover { background: rgba(255,193,7,0.18); }
+    .warn-chevron { font-size: 9px; opacity: 0.7; }
+
+    .pc-warning-log {
+      margin-top: 6px; padding: 6px 8px;
+      background: rgba(0,0,0,0.15); border-radius: 5px;
+      max-height: 140px; overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px; line-height: 1.4;
+    }
+    .pc-warning-row { display: flex; gap: 8px; padding: 1px 0; }
+    .pc-warning-time { color: var(--text-3); flex-shrink: 0; }
+    .pc-warning-msg { color: var(--text-2); word-break: break-word; }
+
     .pc-toggle {
       padding: 4px 12px; border-radius: 5px; font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; transition: all 0.12s; border: none;
@@ -334,6 +366,38 @@ import { StreamService } from '../stream-services.service';
                     }
                   </div>
                   <div class="pc-status" [class]="card.status?.status ?? ''">{{ card.statusLabel }}</div>
+                  @if (card.isLive && (card.uptimeLabel || card.showDrops || card.warningCount > 0)) {
+                    <div class="pc-metrics">
+                      @if (card.uptimeLabel) {
+                        <span class="pc-metric uptime" title="Time since this fan-out started">↑ {{ card.uptimeLabel }}</span>
+                      }
+                      @if (card.showDrops) {
+                        <span class="pc-metric drops"
+                          [class.active]="card.dropRate > 0"
+                          title="Cumulative dropped frames on the relay→platform leg">
+                          ↓ {{ card.dropped | number }} dropped@if (card.dropRate > 0) { ({{ formatDropRate(card.dropRate) }}/s) }
+                        </span>
+                      }
+                      @if (card.warningCount > 0) {
+                        <button class="pc-metric warn-chip"
+                          (click)="toggleWarningLog(card.service.id)"
+                          [title]="card.latestWarning?.message ?? ''">
+                          ⚠ {{ card.warningCount }} {{ card.warningCount === 1 ? 'warning' : 'warnings' }}
+                          <span class="warn-chevron">{{ isWarningExpanded(card.service.id) ? '▾' : '▸' }}</span>
+                        </button>
+                      }
+                    </div>
+                  }
+                  @if (card.warningCount > 0 && isWarningExpanded(card.service.id)) {
+                    <div class="pc-warning-log">
+                      @for (w of card.warnings; track w.at) {
+                        <div class="pc-warning-row">
+                          <span class="pc-warning-time">{{ w.at | date:'HH:mm:ss' }}</span>
+                          <span class="pc-warning-msg">{{ w.message }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
                 @if (card.captureOnly) {
                   <button class="pc-toggle"
@@ -544,6 +608,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private durationInterval: ReturnType<typeof setInterval> | null = null;
   private readonly _prevStatuses = new Map<number, string>();
 
+  // Wall-clock signal that ticks every second while a session is live. Read
+  // inside computeds that depend on elapsed time (platform uptime), so they
+  // re-evaluate without per-card setInterval bookkeeping.
+  readonly now = signal(Date.now());
+  private nowInterval: ReturnType<typeof setInterval> | null = null;
+  // serviceIds whose warning log is expanded in the UI.
+  readonly expandedWarnings = signal<Set<number>>(new Set());
+
   readonly authRequiredList = computed(() => Object.values(this.service.authRequired()));
 
   constructor() {
@@ -552,10 +624,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       if (state === 'live') {
         this.sessionStartTime = this.service.sessionStartedAt() ?? Date.now();
         this._startTimer();
+        this._startNowTicker();
       } else if (state === 'ended') {
         this._stopTimer();
+        this._stopNowTicker();
       } else {
         this._stopTimer();
+        this._stopNowTicker();
         this.duration.set('0s');
         this.sessionStartTime = null;
       }
@@ -571,12 +646,21 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     effect(() => {
       const status = this.service.relayStatus();
-      if (status?.event === 'fallback') {
+      if (status?.event === 'reconnecting') {
+        const secs = Math.round((status.delayMs ?? 0) / 1000);
         this.snackBar.open(
-          `Relay unreachable — falling back to local restreaming` +
+          `Relay disconnected — reconnecting (attempt ${status.attempt}, retry in ${secs}s)…`,
+          'Dismiss',
+          { duration: Math.max(status.delayMs ?? 5000, 5000), panelClass: 'snackbar-warn' }
+        );
+      } else if (status?.event === 'connected') {
+        this.snackBar.open(`Relay connected`, 'Dismiss', { duration: 3000 });
+      } else if (status?.event === 'error') {
+        this.snackBar.open(
+          `Relay failure — restream STOPPED` +
             (status.reason ? ': ' + status.reason : ''),
           'Dismiss',
-          { duration: 8000 }
+          { duration: 12000, panelClass: 'snackbar-error' }
         );
       }
     });
@@ -608,21 +692,49 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly platformCards = computed(() => {
     const services = this.streamSvc.services();
     const statuses = this.service.platformStatuses();
+    const progress = this.service.platformProgress();
+    const progressPrev = this.service.platformProgressPrev();
+    const warnings = this.service.platformWarnings();
     const session = this.service.sessionState();
     const isRelay = this.settingsSvc.settings()?.['relay.mode'] === 'remote';
+    const now = this.now();
     return services
       .filter((s) => s.active && (s.restream_enabled || s.event_capture_enabled))
       .map((s) => {
         const st = statuses[s.id] ?? null;
         const captureOnly = !s.restream_enabled && s.event_capture_enabled;
+        const isLive = st?.status === 'live';
+        const startedAt = st?.startedAt ?? null;
+        const uptimeLabel = isLive && startedAt
+          ? this._fmt(Math.max(0, Math.floor((now - startedAt) / 1000)))
+          : null;
+        const prog = progress[s.id] ?? null;
+        const prev = progressPrev[s.id] ?? null;
+        const dropped = prog?.dropped ?? 0;
+        // drop rate: delta drops / delta seconds between the two most recent samples
+        let dropRate = 0;
+        if (prog && prev && prog.receivedAt > prev.receivedAt) {
+          const dt = (prog.receivedAt - prev.receivedAt) / 1000;
+          dropRate = dt > 0 ? Math.max(0, (prog.dropped - prev.dropped) / dt) : 0;
+        }
+        const platformWarnings = warnings[s.id] ?? [];
         return {
           service: s,
           status: st,
           captureOnly,
-          isLive: st?.status === 'live',
+          isLive,
           isError: st?.status === 'error',
           isRelayMode: isRelay && s.restream_enabled,
           statusLabel: this._statusLabel(st, session, captureOnly),
+          uptimeLabel,
+          dropped,
+          dropRate,
+          // Show the drops badge once any drops have occurred, even if rate=0,
+          // so users see the cumulative damage after a transient spike.
+          showDrops: dropped > 0,
+          warningCount: platformWarnings.length,
+          latestWarning: platformWarnings[0] ?? null,
+          warnings: platformWarnings,
         };
       });
   });
@@ -914,6 +1026,38 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       case 'connecting':  return 'Connecting...';
       case 'error':       return status.reason === 'max_restarts' ? 'Failed (max retries)' : 'Error';
       default:            return 'Unknown';
+    }
+  }
+
+  protected toggleWarningLog(serviceId: number): void {
+    this.expandedWarnings.update((s) => {
+      const next = new Set(s);
+      if (next.has(serviceId)) next.delete(serviceId);
+      else next.add(serviceId);
+      return next;
+    });
+  }
+
+  protected isWarningExpanded(serviceId: number): boolean {
+    return this.expandedWarnings().has(serviceId);
+  }
+
+  protected formatDropRate(rate: number): string {
+    if (rate < 1) return rate.toFixed(2);
+    if (rate < 10) return rate.toFixed(1);
+    return Math.round(rate).toString();
+  }
+
+  private _startNowTicker(): void {
+    this._stopNowTicker();
+    this.now.set(Date.now());
+    this.nowInterval = setInterval(() => this.now.set(Date.now()), 1000);
+  }
+
+  private _stopNowTicker(): void {
+    if (this.nowInterval !== null) {
+      clearInterval(this.nowInterval);
+      this.nowInterval = null;
     }
   }
 

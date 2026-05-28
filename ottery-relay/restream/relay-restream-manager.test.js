@@ -175,6 +175,75 @@ describe('stopSession', () => {
 });
 
 // ---------------------------------------------------------------------------
+// addPlatform / removePlatform
+// ---------------------------------------------------------------------------
+
+describe('addPlatform', () => {
+  it('appends the platform and spawns immediately when stream is active', () => {
+    const { sessionId, session } = makeSession({ platforms: [], streamActive: true });
+    activeSessions.set(sessionId, session);
+    spawn.mockReturnValue(makeFakeProc());
+
+    const p = { serviceId: 7, platform: 'kick', rtmpUrl: 'rtmps://x.y/app', streamKey: 'k' };
+    const result = manager.addPlatform(sessionId, p);
+
+    expect(result.index).toBe(0);
+    expect(session.platforms[0]).toBe(p);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(session.processes.size).toBe(1);
+  });
+
+  it('queues the platform without spawning when stream not yet active', () => {
+    const { sessionId, session } = makeSession({ platforms: [], streamActive: false });
+    activeSessions.set(sessionId, session);
+
+    const p = { serviceId: 8, platform: 'twitch', rtmpUrl: 'rtmp://x/y', streamKey: 'k' };
+    manager.addPlatform(sessionId, p);
+
+    expect(session.platforms).toHaveLength(1);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate serviceId', () => {
+    const { sessionId, session } = makeSession();
+    activeSessions.set(sessionId, session);
+
+    expect(() => manager.addPlatform(sessionId, {
+      serviceId: 1, platform: 'twitch', rtmpUrl: 'rtmp://x/y', streamKey: 'k',
+    })).toThrow('platform_already_in_session');
+  });
+
+  it('throws session_not_found for unknown session', () => {
+    expect(() => manager.addPlatform('nope', {
+      serviceId: 1, platform: 'twitch', rtmpUrl: 'rtmp://x/y', streamKey: 'k',
+    })).toThrow('session_not_found');
+  });
+});
+
+describe('removePlatform', () => {
+  it('kills the proc and nulls the slot', async () => {
+    const { sessionId, session } = makeSession();
+    activeSessions.set(sessionId, session);
+
+    const fakeProc = makeFakeProc();
+    spawn.mockReturnValue(fakeProc);
+    await manager.onStreamReceived(sessionId);
+
+    manager.removePlatform(sessionId, 1);
+
+    expect(fakeProc.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(session.platforms[0]).toBeNull();
+    expect(session.processes.has(0)).toBe(false);
+  });
+
+  it('throws platform_not_in_session for unknown serviceId', () => {
+    const { sessionId, session } = makeSession();
+    activeSessions.set(sessionId, session);
+    expect(() => manager.removePlatform(sessionId, 9999)).toThrow('platform_not_in_session');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // redactKey
 // ---------------------------------------------------------------------------
 

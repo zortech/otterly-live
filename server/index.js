@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const { Agent: UndiciAgent, fetch: undiciFetch } = require('undici');
 const path = require('path');
 const { Server } = require('socket.io');
 const db = require('./db/knex');
@@ -46,7 +47,7 @@ function applyLogLevel(level) {
 
 // Only these key prefixes may be written via PUT /api/settings.
 // Credentials (credits.apiKey etc.) have dedicated endpoints with their own validation.
-const ALLOWED_SETTING_PREFIXES = ['app.', 'warudo.', 'overlay.', 'rtmp.', 'music.', 'streamtap.', 'relay.'];
+const ALLOWED_SETTING_PREFIXES = ['app.', 'warudo.', 'overlay.', 'rtmp.', 'server.', 'music.', 'streamtap.', 'relay.'];
 function isAllowedSettingKey(key) {
   return ALLOWED_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
@@ -65,6 +66,7 @@ async function startServer() {
   logger.info('Token manager started');
 
   const port = await settings.get('server.port');
+  const bindAddress = await settings.get('server.bindAddress');
 
   const app = express();
 
@@ -90,6 +92,7 @@ async function startServer() {
   app.use('/api/event-capture', require('./api/event-capture'));
   app.use('/api/stream-sessions', require('./api/stream-sessions'));
   app.use('/api/credits', require('./api/credits'));
+  app.use('/api/gift-animations', require('./api/gift-animations'));
   app.use('/api', require('./api/music'));
 
   // Kick PKCE OAuth callback — must be before the SPA wildcard catch-all
@@ -245,14 +248,16 @@ async function startServer() {
       ]);
       if (!relayUrl || !apiToken)
         return res.status(400).json({ error: 'relay.url and relay.apiToken must be configured' });
-      const resp = await fetch(`${relayUrl}/api/me`,
-        { headers: { Authorization: `Bearer ${apiToken}` } });
+      const resp = await undiciFetch(`${relayUrl}/api/me`, {
+        headers: { Authorization: `Bearer ${apiToken}` },
+        dispatcher: new UndiciAgent({ connect: { rejectUnauthorized: false } }),
+      });
       if (!resp.ok)
         return res.status(resp.status).json({ error: 'Relay rejected the token' });
       const data = await resp.json();
       res.json({ ok: true, username: data.username });
     } catch (err) {
-      logger.error('POST /api/relay/verify', err.message);
+      logger.error('POST /api/relay/verify', err.cause ?? err);
       res.status(500).json({ error: err.message ?? 'Could not reach relay server' });
     }
   });
@@ -350,10 +355,10 @@ async function startServer() {
   });
 
   await new Promise((resolve, reject) => {
-    httpServer.listen(port, '127.0.0.1', (err) => {
+    httpServer.listen(port, bindAddress, (err) => {
       if (err) reject(err);
       else {
-        logger.info(`Server listening on http://127.0.0.1:${port}`);
+        logger.info(`Server listening on http://${bindAddress}:${port}`);
         resolve();
       }
     });

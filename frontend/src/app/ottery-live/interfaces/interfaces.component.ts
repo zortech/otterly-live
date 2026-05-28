@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { RouterLink } from '@angular/router';
 import { SettingsService } from '../settings/settings.service';
 
 const PLATFORMS = ['twitch', 'youtube', 'kick', 'tiktok', 'x', 'joystick'] as const;
@@ -81,7 +82,7 @@ type SettingsTab = 'colors' | 'display' | 'platforms';
 @Component({
   selector: 'app-interfaces',
   standalone: true,
-  imports: [MatIconModule, FormsModule],
+  imports: [MatIconModule, FormsModule, RouterLink],
   styles: [`
     .page-title {
       font-size: 22px; font-weight: 700; color: var(--text-1);
@@ -836,6 +837,72 @@ type SettingsTab = 'colors' | 'display' | 'platforms';
 
       </div>
 
+      <!-- ── Gift Alerts (with TikTok assets) ──────────────────── -->
+      <div class="overlay-card">
+
+        <div class="card-header">
+          <div class="card-icon"><mat-icon>celebration</mat-icon></div>
+          <div class="card-titles">
+            <div class="card-title">Gift Alerts <span style="font-weight:500;color:var(--text-2);">(with TikTok assets)</span></div>
+            <div class="card-desc">
+              Custom gift/sub animations. Unmapped TikTok gifts fall back to TikTok's own icons —
+              <strong>use this URL on TikTok-led scenes only</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-url">
+          <div class="url-display" [title]="giftAlertsTikTokUrl()">{{ giftAlertsTikTokUrl() }}</div>
+          <button class="copy-btn" [class.copied]="giftAlertsTikTokCopied()" (click)="copyGiftAlertsTikTok()">
+            <mat-icon>{{ giftAlertsTikTokCopied() ? 'check' : 'content_copy' }}</mat-icon>
+            {{ giftAlertsTikTokCopied() ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+
+        <a class="settings-toggle" routerLink="/ottery-live/gift-alerts"
+          style="text-decoration:none; display:flex;">
+          <span class="settings-toggle-label">
+            <mat-icon>tune</mat-icon>
+            Manage animations
+          </span>
+          <mat-icon class="settings-toggle-chevron">chevron_right</mat-icon>
+        </a>
+
+      </div>
+
+      <!-- ── Gift Alerts (safe) ──────────────────────────────── -->
+      <div class="overlay-card">
+
+        <div class="card-header">
+          <div class="card-icon"><mat-icon>celebration</mat-icon></div>
+          <div class="card-titles">
+            <div class="card-title">Gift Alerts <span style="font-weight:500;color:var(--text-2);">(safe)</span></div>
+            <div class="card-desc">
+              Same custom animations, but unmapped TikTok gifts are hidden — safe to use on
+              Twitch, YouTube, Kick, or any non-TikTok scene.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-url">
+          <div class="url-display" [title]="giftAlertsSafeUrl()">{{ giftAlertsSafeUrl() }}</div>
+          <button class="copy-btn" [class.copied]="giftAlertsSafeCopied()" (click)="copyGiftAlertsSafe()">
+            <mat-icon>{{ giftAlertsSafeCopied() ? 'check' : 'content_copy' }}</mat-icon>
+            {{ giftAlertsSafeCopied() ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+
+        <a class="settings-toggle" routerLink="/ottery-live/gift-alerts"
+          style="text-decoration:none; display:flex;">
+          <span class="settings-toggle-label">
+            <mat-icon>tune</mat-icon>
+            Manage animations
+          </span>
+          <mat-icon class="settings-toggle-chevron">chevron_right</mat-icon>
+        </a>
+
+      </div>
+
     </div>
   `,
 })
@@ -897,6 +964,12 @@ export class InterfacesComponent implements OnInit {
   readonly gmTheme            = signal<string>('simple');
   readonly multiGoals         = signal<GoalEntry[]>(DEFAULT_MULTI_GOALS.map(g => ({ ...g })));
 
+  // Gift Alerts overlays — two variants share the same route, differ only by ?fallback=
+  readonly giftAlertsTikTokUrl    = signal('http://localhost:3737/overlays/gift-alerts?fallback=tiktok-assets');
+  readonly giftAlertsTikTokCopied = signal(false);
+  readonly giftAlertsSafeUrl      = signal('http://localhost:3737/overlays/gift-alerts?fallback=safe');
+  readonly giftAlertsSafeCopied   = signal(false);
+
   async ngOnInit(): Promise<void> {
     await this.settingsSvc.load();
     const s = this.settingsSvc.settings() as Record<string, unknown> | null;
@@ -907,6 +980,9 @@ export class InterfacesComponent implements OnInit {
 
     this.goalSingleUrl.set(`http://localhost:${port}/overlays/goal-single`);
     this.goalMultiUrl.set(`http://localhost:${port}/overlays/goal-multi`);
+
+    this.giftAlertsTikTokUrl.set(`http://localhost:${port}/overlays/gift-alerts?fallback=tiktok-assets`);
+    this.giftAlertsSafeUrl.set(`http://localhost:${port}/overlays/gift-alerts?fallback=safe`);
 
     if (s) {
       if (s[KEY_COLORS] != null)
@@ -1147,5 +1223,23 @@ export class InterfacesComponent implements OnInit {
 
   toggleMultiGoal(idx: number): void {
     this.setMultiGoalField(idx, 'enabled', !this.multiGoals()[idx]?.enabled);
+  }
+
+  // ── Gift Alerts ───────────────────────────────────────────────────────
+
+  async copyGiftAlertsTikTok(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.giftAlertsTikTokUrl());
+      this.giftAlertsTikTokCopied.set(true);
+      setTimeout(() => this.giftAlertsTikTokCopied.set(false), 2000);
+    } catch { this.snackBar.open('Could not copy to clipboard', 'Dismiss', { duration: 3000 }); }
+  }
+
+  async copyGiftAlertsSafe(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.giftAlertsSafeUrl());
+      this.giftAlertsSafeCopied.set(true);
+      setTimeout(() => this.giftAlertsSafeCopied.set(false), 2000);
+    } catch { this.snackBar.open('Could not copy to clipboard', 'Dismiss', { duration: 3000 }); }
   }
 }

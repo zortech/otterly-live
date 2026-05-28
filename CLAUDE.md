@@ -51,6 +51,8 @@ No external servers, databases, or services required beyond OBS.
 | 6   | StreamTap             | [docs/STREAMTAP.md](docs/STREAMTAP.md)                       | Optional WS server; broadcasts event stream to overlays/bots |
 | 7   | Warudo Relay          | [docs/WARUDO_RELAY.md](docs/WARUDO_RELAY.md)                 | Forwards events to Warudo (built-in WS relay + C# plugin)    |
 | 8   | Remote Relay          | [docs/REMOTE_RELAY.md](docs/REMOTE_RELAY.md)                 | Optional cloud relay server; one upload, N-platform fan-out; multi-user |
+| 8.1 | Relay Deployment      | [docs/REMOTE_RELAY_DEPLOYMENT.md](docs/REMOTE_RELAY_DEPLOYMENT.md) | Live relay host: systemd unit, ports, logs, user CLI |
+| 9   | Gift Alerts Overlay   | [docs/OVERLAY_GIFT_ALERTS.md](docs/OVERLAY_GIFT_ALERTS.md)   | Custom gift/sub/redeem animations with TikTok-asset fallback variant |
 | —   | App Settings          | [docs/APP_SETTINGS.md](docs/APP_SETTINGS.md)                 | Settings schema, storage, module API            |
 | —   | Token Management      | [docs/TOKEN_MANAGEMENT.md](docs/TOKEN_MANAGEMENT.md)         | OAuth token refresh, Twitch hourly validation   |
 | —   | Implementation Order  | [docs/IMPLEMENTATION_ORDER.md](docs/IMPLEMENTATION_ORDER.md) | Recommended build sequence (16 phases)          |
@@ -246,3 +248,9 @@ OTTERY_DEV=true             # Enable dev tools in Electron window
 - X event capture requires elevated Twitter API access; restream-only by default
 - Joystick.tv event capture is TBD
 - OAuth flows open the system browser; callback caught via `ottery-live://` URI scheme
+- **better-sqlite3 native ABI**: `npm install` leaves it built for the host
+  Node version (works for tests, `dev:server`, and `npm run dev` — Electron is a
+  thin browser shell in dev mode and doesn't load the native module).
+  Production-mode Electron (`electron .` without `OTTERY_DEV`) needs the
+  Electron ABI — run `npm run electron:rebuild` first, then `npm run node:rebuild`
+  to restore. `electron-builder` rebuilds automatically during `package:*`.

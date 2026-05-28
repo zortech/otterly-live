@@ -215,6 +215,14 @@ class EventCaptureManager {
     }
   }
 
+  // Stop and re-start capture for a service. Used after OAuth completes to
+  // recover from prior permanent errors (e.g. NO_CHANNEL_ID before auth) and
+  // to pick up fresh credentials.
+  async restart(serviceId) {
+    await this.stop(serviceId);
+    await this.start(serviceId);
+  }
+
   async startForAll() {
     let services;
     try {

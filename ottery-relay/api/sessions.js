@@ -44,11 +44,17 @@ function validatePlatformConfig(p, index) {
 // ---- Routes ------------------------------------------------------------
 
 // POST /api/sessions
+//
+// Opens a relay session. `platforms` may be empty — that is allowed so the
+// caller can open an ingest channel up-front and add platforms later via
+// POST /api/sessions/:id/platforms. Empty sessions still occupy an ingest
+// token and a slot in activeSessions, so users can't create unbounded
+// stale sessions (one per user is normal during a stream).
 router.post('/', async (req, res) => {
-  const { platforms } = req.body;
+  const { platforms = [] } = req.body;
 
-  if (!Array.isArray(platforms) || platforms.length === 0)
-    return res.status(400).json({ error: 'platforms must be a non-empty array' });
+  if (!Array.isArray(platforms))
+    return res.status(400).json({ error: 'platforms must be an array' });
   if (platforms.length > 10)
     return res.status(400).json({ error: 'too many platforms (max 10)' });
 
@@ -72,10 +78,11 @@ router.post('/', async (req, res) => {
     // Store platform configs (including stream keys) in memory ONLY — never in DB
     const { activeSessions } = getRelayRestreamManager();
     activeSessions.set(sessionId, {
-      userId:      req.user.id,
+      userId:       req.user.id,
       ingestToken,
-      platforms,   // contains streamKey — lives here until endSession()
-      processes:   new Map(),
+      platforms,    // contains streamKey — lives here until endSession()
+      processes:    new Map(),
+      streamActive: false,
     });
 
     logger.info('[sessions] started', { userId: req.user.id, sessionId, platformCount: platforms.length });
@@ -83,6 +90,63 @@ router.post('/', async (req, res) => {
     res.status(201).json({ sessionId, ingestToken, rtmpsPort });
   } catch (err) {
     logger.error('[sessions] POST error', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// POST /api/sessions/:id/platforms — add one platform to an existing session
+router.post('/:id/platforms', async (req, res) => {
+  const { id } = req.params;
+  const platform = req.body;
+  const validationErr = validatePlatformConfig(platform, 0);
+  if (validationErr) return res.status(400).json({ error: validationErr });
+
+  try {
+    const row = await db('sessions').where({ session_id: id }).first();
+    if (!row) return res.status(404).json({ error: 'session_not_found' });
+    if (row.user_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+
+    const mgr = getRelayRestreamManager();
+    try {
+      mgr.addPlatform(id, platform);
+    } catch (err) {
+      if (err.message === 'platform_already_in_session') return res.status(409).json({ error: err.message });
+      if (err.message === 'session_not_found') return res.status(404).json({ error: err.message });
+      throw err;
+    }
+
+    logger.info('[sessions] platform added', { userId: req.user.id, sessionId: id, serviceId: platform.serviceId, platform: platform.platform });
+    res.status(201).json({ added: true });
+  } catch (err) {
+    logger.error('[sessions] add platform error', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// DELETE /api/sessions/:id/platforms/:serviceId
+router.delete('/:id/platforms/:serviceId', async (req, res) => {
+  const { id, serviceId } = req.params;
+  const sid = parseInt(serviceId, 10);
+  if (!Number.isFinite(sid)) return res.status(400).json({ error: 'invalid_serviceId' });
+
+  try {
+    const row = await db('sessions').where({ session_id: id }).first();
+    if (!row) return res.status(404).json({ error: 'session_not_found' });
+    if (row.user_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+
+    const mgr = getRelayRestreamManager();
+    try {
+      mgr.removePlatform(id, sid);
+    } catch (err) {
+      if (err.message === 'platform_not_in_session') return res.status(404).json({ error: err.message });
+      if (err.message === 'session_not_found') return res.status(404).json({ error: err.message });
+      throw err;
+    }
+
+    logger.info('[sessions] platform removed', { userId: req.user.id, sessionId: id, serviceId: sid });
+    res.status(204).end();
+  } catch (err) {
+    logger.error('[sessions] remove platform error', err.message);
     res.status(500).json({ error: 'internal_error' });
   }
 });

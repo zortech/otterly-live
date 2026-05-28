@@ -673,12 +673,12 @@ export interface PlatformFormDialogData {
               <span class="key-badge-label">Stored securely in OS keychain</span>
               <button mat-stroked-button type="button" (click)="showStreamKeyField.set(true)">Update</button>
             </div>
-          } @else if (!isEdit() || showStreamKeyField()) {
+          } @else {
             <mat-form-field appearance="outline">
               <mat-label>Stream Key</mat-label>
               <input matInput type="password" formControlName="stream_key"
                      autocomplete="new-password"
-                     [placeholder]="isEdit() ? 'Leave blank to keep current' : 'Enter stream key'" />
+                     [placeholder]="isEdit() && data.service?.stream_key_configured ? 'Leave blank to keep current' : 'Enter stream key'" />
               <mat-hint>Write-only — stored securely in OS keychain</mat-hint>
             </mat-form-field>
           }

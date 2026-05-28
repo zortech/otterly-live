@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 export interface PublicSettings {
   'rtmp.port': number;
   'server.port': number;
+  'server.bindAddress': string;
   'stream.autoStartOnOBSConnect': boolean;
   'stream.stopCaptureOnStreamEnd': boolean;
   'app.minimizeToTray': boolean;

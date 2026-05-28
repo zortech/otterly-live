@@ -29,10 +29,12 @@ function attachSocketBridge(io, eventBus, getSessionState, getRestreamStatus, ge
     }
   });
 
-  eventBus.on('event',            (e) => io.emit('ottery:event', e));
-  eventBus.on('restream.started', (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.stopped', (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.error',   (d) => io.emit('ottery:status', d));
+  eventBus.on('event',             (e) => io.emit('ottery:event', e));
+  eventBus.on('restream.started',  (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.stopped',  (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.error',    (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.progress', (d) => io.emit('ottery:progress', d));
+  eventBus.on('restream.warning',  (d) => io.emit('ottery:warning',  d));
   eventBus.on('session.started',  (d) => io.emit('ottery:session', { state: 'live',  sessionId: d?.sessionId ?? null }));
   eventBus.on('session.ended',    (d) => io.emit('ottery:session', { state: 'ended', sessionId: d?.sessionId ?? null }));
 
@@ -42,9 +44,15 @@ function attachSocketBridge(io, eventBus, getSessionState, getRestreamStatus, ge
   eventBus.on('capture.error',      (d) => io.emit('ottery:status', { ...d, type: 'capture' }));
   eventBus.on('capture.connecting', (d) => io.emit('ottery:status', { ...d, type: 'capture' }));
 
-  // Relay events — forwarded to Angular so it can show badges / fallback toasts
+  // Relay events — forwarded to Angular so it can show banners / toasts.
+  //   streamReceived → relay confirmed our publish landed
+  //   connected      → local passthrough FFmpeg up and pushing
+  //   reconnecting   → transient drop; backoff retry in progress (alert)
+  //   error          → hard failure, stream is NOT running (no local fallback)
   eventBus.on('relay.streamReceived', (d) => io.emit('ottery:relay', { event: 'streamReceived', ...d }));
-  eventBus.on('relay.fallback',       (d) => io.emit('ottery:relay', { event: 'fallback', ...d }));
+  eventBus.on('relay.connected',      (d) => io.emit('ottery:relay', { event: 'connected', ...d }));
+  eventBus.on('relay.reconnecting',   (d) => io.emit('ottery:relay', { event: 'reconnecting', ...d }));
+  eventBus.on('relay.error',          (d) => io.emit('ottery:relay', { event: 'error', ...d }));
 
   // Auth events
   eventBus.on('auth.required', (d) => io.emit('ottery:auth', d));

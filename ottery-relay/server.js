@@ -1,6 +1,9 @@
 'use strict';
 
+require('dotenv').config();
+
 const http   = require('http');
+const https  = require('https');
 const path   = require('path');
 const fs     = require('fs');
 const crypto = require('crypto');
@@ -55,40 +58,47 @@ async function maybeCreateOwner() {
 }
 
 // ---- Self-signed cert generation ---------------------------------------
+// Returns { key, cert } buffers if TLS is available, null otherwise.
 
 function maybeGenerateCerts() {
   const keyPath  = process.env.RELAY_RTMPS_KEY_PATH;
   const certPath = process.env.RELAY_RTMPS_CERT_PATH;
 
-  if (!keyPath || !certPath) return;
-  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) return;
+  if (!keyPath || !certPath) return null;
 
-  logger.info('[certs] generating self-signed TLS certificate…');
+  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+    logger.info('[certs] generating self-signed TLS certificate…');
 
-  fs.mkdirSync(path.dirname(path.resolve(keyPath)),  { recursive: true });
-  fs.mkdirSync(path.dirname(path.resolve(certPath)), { recursive: true });
+    fs.mkdirSync(path.dirname(path.resolve(keyPath)),  { recursive: true });
+    fs.mkdirSync(path.dirname(path.resolve(certPath)), { recursive: true });
 
-  // spawnSync with an args array — no shell, no injection risk.
-  // openssl is available on Alpine (apk add openssl), Debian, and macOS.
-  const { spawnSync } = require('child_process');
-  const result = spawnSync('openssl', [
-    'req', '-x509',
-    '-newkey', 'rsa:2048',
-    '-keyout', keyPath,
-    '-out',    certPath,
-    '-days',   '3650',
-    '-nodes',
-    '-subj',   '/CN=ottery-relay',
-  ], { stdio: 'pipe' });
+    // spawnSync with an args array — no shell, no injection risk.
+    // openssl is available on Alpine (apk add openssl), Debian, and macOS.
+    const { spawnSync } = require('child_process');
+    const result = spawnSync('openssl', [
+      'req', '-x509',
+      '-newkey', 'rsa:2048',
+      '-keyout', keyPath,
+      '-out',    certPath,
+      '-days',   '3650',
+      '-nodes',
+      '-subj',   '/CN=ottery-relay',
+    ], { stdio: 'pipe' });
 
-  if (result.status !== 0) {
-    const msg = (result.stderr?.toString() ?? '').trim() || 'openssl not found';
-    logger.error(`[certs] cert generation failed — RTMPS will fall back to plain RTMP: ${msg}`);
-    return;
+    if (result.status !== 0) {
+      const msg = (result.stderr?.toString() ?? '').trim() || 'openssl not found';
+      logger.error(`[certs] cert generation failed — falling back to plain HTTP: ${msg}`);
+      return null;
+    }
+
+    try { fs.chmodSync(keyPath, 0o600); } catch {}
+    logger.info(`[certs] self-signed cert written → ${certPath}`);
   }
 
-  try { fs.chmodSync(keyPath, 0o600); } catch {}
-  logger.info(`[certs] self-signed cert written → ${certPath}`);
+  return {
+    key:  fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  };
 }
 
 // ---- Server bootstrap --------------------------------------------------
@@ -119,7 +129,16 @@ async function startServer() {
   // 404 for unknown routes
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 
-  const httpServer = http.createServer(app);
+  const tls = maybeGenerateCerts();
+  const httpServer = tls
+    ? https.createServer({ key: tls.key, cert: tls.cert }, app)
+    : http.createServer(app);
+
+  if (tls) {
+    logger.info('[server] TLS enabled — serving HTTPS');
+  } else {
+    logger.warn('[server] No TLS cert configured — serving plain HTTP (set RELAY_RTMPS_KEY_PATH and RELAY_RTMPS_CERT_PATH to enable HTTPS)');
+  }
 
   _io = new Server(httpServer, { cors: false });
 
@@ -141,7 +160,6 @@ async function startServer() {
   await new Promise((resolve) => httpServer.listen(port, resolve));
   logger.info(`[server] listening on port ${port}`);
 
-  maybeGenerateCerts();
   rtmpManager.start();
 
   return httpServer;

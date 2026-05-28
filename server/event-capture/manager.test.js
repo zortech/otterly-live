@@ -263,3 +263,33 @@ describe('_reconnect', () => {
     jest.useRealTimers();
   });
 });
+
+// ---------------------------------------------------------------------------
+// restart — recovery after OAuth completes (e.g. previous NO_CHANNEL_ID error)
+// ---------------------------------------------------------------------------
+
+describe('restart', () => {
+  it('starts capture when no worker is currently registered (recovery from permanent error)', async () => {
+    StreamService.getWithCredentials.mockResolvedValue(makeSvc());
+
+    await manager.restart(1);
+
+    expect(manager.workers.has(1)).toBe(true);
+  });
+
+  it('stops and re-starts an existing worker, picking up fresh credentials', async () => {
+    StreamService.getWithCredentials.mockResolvedValue(makeSvc());
+    await manager.start(1);
+    const firstWorker = manager.workers.get(1).worker;
+
+    const freshSvc = makeSvc({ api_access_token: 'fresh-after-oauth' });
+    StreamService.getWithCredentials.mockResolvedValue(freshSvc);
+
+    await manager.restart(1);
+
+    expect(firstWorker.disconnect).toHaveBeenCalled();
+    expect(manager.workers.has(1)).toBe(true);
+    expect(manager.workers.get(1).worker).not.toBe(firstWorker);
+    expect(manager.workers.get(1).svc).toEqual(freshSvc);
+  });
+});

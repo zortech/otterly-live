@@ -4,6 +4,7 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 const BaseCapture = require('./base-capture');
 const StreamService = require('../models/stream-service');
 const logger = require('../lib/logger');
+const giftCache = require('./tiktok-gift-cache');
 
 class TikTokCapture extends BaseCapture {
   constructor(svc, manager) {
@@ -33,13 +34,18 @@ class TikTokCapture extends BaseCapture {
     this._intentionalDisconnect = false;
 
     logger.info(`[tiktok-capture:${this.svc.id}] connecting as ${username}`);
-    this._connection = new WebcastPushConnection(username);
+    this._connection = new WebcastPushConnection(username, { enableExtendedGiftInfo: true });
 
     // Wire ALL event handlers before calling connect()
     this._connection.on('connected', (state) => {
       this._connected = true;
       this.emit('connected');
       logger.info(`[tiktok-capture:${this.svc.id}] connected (roomId=${state?.roomId ?? 'unknown'})`);
+      const gifts = state?.availableGifts ?? this._connection?.availableGifts;
+      if (Array.isArray(gifts) && gifts.length > 0) {
+        giftCache.setAvailableGifts(gifts);
+        logger.info(`[tiktok-capture:${this.svc.id}] cached ${gifts.length} gift definitions`);
+      }
     });
 
     this._connection.on('disconnected', () => {
@@ -68,10 +74,12 @@ class TikTokCapture extends BaseCapture {
     this._connection.on('gift', (d) => {
       // TikTok streams intermediate gift events as user holds the button — only emit when done
       if (d.repeatEnd !== true) return;
+      const cached = giftCache.get(d.giftId);
       this.emit('event', this.buildEvent('tip', this._actor(d), {
-        giftName: d.giftName ?? '',
-        amount: (d.diamondCount ?? 0) * (d.repeatCount ?? 1),
+        giftName: d.giftName ?? cached?.name ?? '',
+        amount: (d.diamondCount ?? cached?.diamondCount ?? 0) * (d.repeatCount ?? 1),
         giftId: d.giftId ?? null,
+        giftIconUrl: cached?.iconUrl ?? null,
         repeatCount: d.repeatCount ?? 1,
       }));
     });

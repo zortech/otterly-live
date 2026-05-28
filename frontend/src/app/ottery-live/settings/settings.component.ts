@@ -193,6 +193,29 @@ import { SecretKeyFieldComponent } from './secret-key-field.component';
             <input matInput type="number" [formControl]="serverPortControl" />
             <mat-hint>Default: 3737 — requires restart</mat-hint>
           </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"
+            matTooltip="Which network interface the web server listens on. 'This computer only' (127.0.0.1) blocks all access from other machines and is safest. 'All interfaces' (0.0.0.0) lets other devices on your LAN reach overlays — useful for apps like TikTok Live Studio running on another PC. Requires a restart."
+            matTooltipPosition="right">
+            <mat-label>Listen on</mat-label>
+            <mat-select
+              [value]="svc.settings()?.['server.bindAddress'] ?? '127.0.0.1'"
+              (selectionChange)="save('server.bindAddress', $event.value)">
+              <mat-option value="127.0.0.1">This computer only (127.0.0.1)</mat-option>
+              <mat-option value="0.0.0.0">All network interfaces (0.0.0.0)</mat-option>
+            </mat-select>
+            <mat-hint>Default: this computer only — requires restart</mat-hint>
+          </mat-form-field>
+
+          @if (svc.settings()?.['server.bindAddress'] === '0.0.0.0') {
+            <div class="hint-box" style="border-color: rgba(255,183,77,0.35); background: rgba(255,183,77,0.06);">
+              <mat-icon style="color: var(--warn-color);">warning</mat-icon>
+              <span>
+                Overlays and the dashboard have no authentication. Anyone on your local network can open them.
+                Only use this on a trusted network.
+              </span>
+            </div>
+          }
         </div>
       </div>
 
@@ -499,7 +522,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly destroy$ = new Subject<void>();
 
-  private readonly originalPorts = signal<{ rtmp: number; server: number } | null>(null);
+  private readonly originalPorts = signal<{ rtmp: number; server: number; bindAddress: string } | null>(null);
 
   readonly verifyingRelay    = signal(false);
   readonly relayVerifyResult = signal<{ ok: boolean; username?: string; error?: string } | null>(null);
@@ -531,7 +554,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     const s = this.svc.settings();
     const orig = this.originalPorts();
     if (!s || !orig) return false;
-    return s['rtmp.port'] !== orig.rtmp || s['server.port'] !== orig.server;
+    return s['rtmp.port'] !== orig.rtmp
+      || s['server.port'] !== orig.server
+      || s['server.bindAddress'] !== orig.bindAddress;
   });
 
   async ngOnInit(): Promise<void> {
@@ -540,7 +565,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (s) {
       this.rtmpPortControl.setValue(s['rtmp.port'], { emitEvent: false });
       this.serverPortControl.setValue(s['server.port'], { emitEvent: false });
-      this.originalPorts.set({ rtmp: s['rtmp.port'], server: s['server.port'] });
+      this.originalPorts.set({
+        rtmp: s['rtmp.port'],
+        server: s['server.port'],
+        bindAddress: s['server.bindAddress'] ?? '127.0.0.1',
+      });
       this.warudoHostControl.setValue(s['warudo.host'] ?? 'localhost', { emitEvent: false });
       this.warudoPortControl.setValue(s['warudo.port'] ?? 19190, { emitEvent: false });
       this.streamtapPortControl.setValue(s['streamtap.port'] ?? 4747, { emitEvent: false });

@@ -17,6 +17,17 @@ const router = Router();
 
 const VALID_PLATFORMS = new Set(['twitch', 'youtube', 'kick', 'tiktok', 'x', 'joystick', 'rumble', 'facebook', 'bilibili']);
 
+// Re-attempt event capture after OAuth completes. A permanent error before
+// auth (e.g. NO_CHANNEL_ID) removes the worker from the manager, so it won't
+// auto-recover when fresh credentials land. Lazy require avoids a circular
+// dep at module load.
+function _restartCaptureAfterOAuth(serviceId) {
+  const eventCaptureManager = require('../event-capture/manager');
+  eventCaptureManager.restart(serviceId).catch((err) =>
+    logger.warn(`[oauth] failed to (re)start capture for serviceId=${serviceId}: ${err.message}`)
+  );
+}
+
 const CREDENTIAL_FIELDS = [
   'stream_key',
   'api_client_id',
@@ -406,6 +417,8 @@ async function _completeJoystickOAuth(serviceId, code, clientId, clientSecret, s
   const { getIo } = require('../index');
   getIo()?.emit('stream-services:updated', { action: 'updated', service: serialized });
   getIo()?.emit('ottery:oauth', { event: 'oauth.complete', serviceId, platform: 'joystick' });
+
+  _restartCaptureAfterOAuth(serviceId);
 }
 
 // Callback handler for GET /auth/joystick/callback — registered in server/index.js
@@ -509,6 +522,8 @@ async function _completeKickOAuth(serviceId, code, codeVerifier, clientId, serve
   const { getIo } = require('../index');
   getIo()?.emit('stream-services:updated', { action: 'updated', service: serialized });
   getIo()?.emit('ottery:oauth', { event: 'oauth.complete', serviceId, platform: 'kick' });
+
+  _restartCaptureAfterOAuth(serviceId);
 }
 
 // Callback handler for GET /auth/kick/callback — registered in server/index.js
@@ -590,6 +605,8 @@ async function _pollTwitchOAuth(serviceId, dcfData, clientId) {
   const { getIo } = require('../index');
   getIo()?.emit('stream-services:updated', { action: 'updated', service: serialized });
   getIo()?.emit('ottery:oauth', { event: 'oauth.complete', serviceId, platform: 'twitch' });
+
+  _restartCaptureAfterOAuth(serviceId);
 }
 
 // POST /api/stream-services/:id/oauth/youtube/start
@@ -684,6 +701,8 @@ async function _completeYouTubeOAuth(serviceId, code, codeVerifier, clientId, cl
   const { getIo } = require('../index');
   getIo()?.emit('stream-services:updated', { action: 'updated', service: serialized });
   getIo()?.emit('ottery:oauth', { event: 'oauth.complete', serviceId, platform: 'youtube' });
+
+  _restartCaptureAfterOAuth(serviceId);
 }
 
 // Callback handler for GET /auth/youtube/callback — registered in server/index.js
