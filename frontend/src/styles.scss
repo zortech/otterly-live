@@ -59,6 +59,24 @@ html, body {
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* ── Native form controls ──────────────────────────────────────────────── */
+/* Native <select>/<input>/<textarea> default to OS field colors (black text),
+   which is near-invisible on the dark theme. Components style their own
+   controls, but the dropdown <option> popup is rendered by the browser and is
+   never reached by scoped styles — set sane dark-theme defaults here. */
+
+select, input, textarea {
+  color: var(--text-1);
+  caret-color: var(--accent);
+}
+
+/* Dropdown option list — the actual invisible-text culprit. */
+select option,
+select optgroup {
+  background: var(--bg-raised);
+  color: var(--text-1);
+}
+
 /* ── Global Material overrides ─────────────────────────────────────────── */
 
 .mat-mdc-card {
@@ -220,12 +238,16 @@ textarea.mdc-text-field__input {
 .mat-mdc-button:not([disabled]) { color: var(--text-2) !important; }
 .mat-mdc-button:hover:not([disabled]) { color: var(--text-1) !important; }
 
-.mat-mdc-stroked-button:not([disabled]) {
+/* Angular Material 21: `mat-stroked-button` renders host class
+   `.mat-mdc-outlined-button` (the old `.mat-mdc-stroked-button` no longer
+   exists), so target the outlined class. */
+.mat-mdc-outlined-button:not([disabled]) {
   --mdc-outlined-button-container-color: transparent !important;
   --mdc-outlined-button-outline-color: var(--border-2) !important;
   --mdc-outlined-button-label-text-color: var(--text-1) !important;
+  color: var(--text-1) !important;
 }
-.mat-mdc-stroked-button:not([disabled]):hover {
+.mat-mdc-outlined-button:not([disabled]):hover {
   --mdc-outlined-button-outline-color: rgba(255,255,255,0.22) !important;
   background: var(--bg-hover) !important;
 }
