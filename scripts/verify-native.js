@@ -32,6 +32,14 @@ check('keytar', () => {
   require('keytar');
 });
 
+// Pure-JS deps that are sensitive to the bundled Node version. undici@8 needs a
+// newer Node than Electron 33 ships and throws at require time
+// (webidl.util.markAsUncloneable is not a function); loading these here catches
+// that class of breakage in CI instead of on the user's machine.
+for (const mod of ['undici', 'node-media-server', 'socket.io', 'socket.io-client', '@grpc/grpc-js', 'ws']) {
+  check(mod, () => require(mod));
+}
+
 if (!ok) {
   console.error('\nNative module verification FAILED - wrong ABI for this Electron version.');
   process.exit(1);
