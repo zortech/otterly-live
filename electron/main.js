@@ -79,10 +79,22 @@ async function main() {
   setupTray();
 
   const { autoUpdater } = require('electron-updater');
+  const logger = require('../server/lib/logger');
+  // A failed update check (no published release yet, offline, 404 on latest.yml)
+  // must never take down the app. electron-updater emits 'error' on an
+  // EventEmitter — with no listener Node throws it as an uncaught exception,
+  // which the fatal handler above would then turn into an app exit.
+  autoUpdater.on('error', (err) => {
+    logger.warn('[updater] update check failed (non-fatal):', (err && err.message) || err);
+  });
   autoUpdater.on('update-downloaded', () => {
     if (mainWindow) mainWindow.webContents.send('update-ready');
   });
-  setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 5000);
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      logger.warn('[updater] checkForUpdatesAndNotify rejected (non-fatal):', (err && err.message) || err);
+    });
+  }, 5000);
 }
 
 function buildAppMenu(serverPort) {
@@ -263,11 +275,17 @@ ipcMain.handle('open-external', async (_event, url) => {
 
 ipcMain.handle('get-version', () => app.getVersion());
 
-ipcMain.handle('check-for-updates', () => {
+ipcMain.handle('check-for-updates', async () => {
   if (!isDev) {
     const { autoUpdater } = require('electron-updater');
-    autoUpdater.checkForUpdatesAndNotify();
+    try {
+      await autoUpdater.checkForUpdatesAndNotify();
+    } catch (err) {
+      // Manual update check failed — report to the caller, never crash.
+      return { ok: false, error: (err && err.message) || String(err) };
+    }
   }
+  return { ok: true };
 });
 
 ipcMain.handle('open-log-folder', async () => {

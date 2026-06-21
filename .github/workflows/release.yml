@@ -117,11 +117,17 @@ jobs:
             dist/installers/*.dmg
             dist/installers/*.AppImage
             dist/installers/*.deb
+            dist/installers/*.yml
+            dist/installers/*.blockmap
           if-no-files-found: warn
 
   docker:
     needs: test
     runs-on: ubuntu-latest
+    # The relay image push to GHCR can fail with permission_denied (org/package
+    # write policy on GITHUB_TOKEN). That must not block publishing the desktop
+    # app release — the release job depends only on `build`, not on `docker`.
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -154,6 +160,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          # Only the installer artifacts — not docker's .dockerbuild record,
+          # which broke the download with "failed after 5 retries".
+          pattern: '*-installer'
           merge-multiple: true
 
       - name: Create GitHub Release
