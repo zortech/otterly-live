@@ -42,11 +42,28 @@ async function refresh(svc) {
   const data = await res.json();
 
   if (!res.ok) {
+    const message = data.message || data.error || '';
+
+    // Device Code Grant is a public client and correctly sends no secret, so a
+    // "missing client secret" response does NOT mean a secret is needed. Twitch
+    // returns it when it can't match the request to a valid public client —
+    // usually a wrong/stale Client ID, or an app whose Client Type isn't "Public".
+    // Surface that instead of the misleading raw message.
+    if (res.status === 400 && message.includes('missing client secret')) {
+      throw new TokenRefreshError(
+        'Twitch did not recognize this Client ID as a Public client. ' +
+        'Check that the Client ID matches your Twitch application and that the ' +
+        "app's Client Type is set to \"Public\" in the Twitch Developer Console, " +
+        'then reconnect your Twitch account.',
+        { requiresReauth: true }
+      );
+    }
+
     const requiresReauth = res.status === 400 && (
-      data.message?.includes('Invalid refresh token') ||
+      message.includes('Invalid refresh token') ||
       data.error === 'invalid_grant'
     );
-    throw new TokenRefreshError(data.message || data.error || 'Token refresh failed', { requiresReauth });
+    throw new TokenRefreshError(message || 'Token refresh failed', { requiresReauth });
   }
 
   await StreamService.setCredential(svc.id, 'api_access_token', data.access_token);
