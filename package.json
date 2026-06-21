@@ -1,6 +1,6 @@
 {
   "name": "ottery-live",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Multi-platform live streaming desktop app",
   "author": {
     "name": "Zor",
@@ -20,15 +20,16 @@
     "build": "npm run build:frontend && npm run build:overlays",
     "electron:rebuild": "node scripts/rebuild-native.js",
     "node:rebuild": "npm rebuild better-sqlite3",
+    "verify:native": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/verify-native.js",
     "postinstall": "npm install --prefix overlays --ignore-scripts",
     "test:server": "jest --testPathPattern=server/",
     "test:frontend": "cd frontend && ng test",
     "test:frontend:ci": "cd frontend && npx ng test --watch=false",
     "test:e2e": "playwright test",
-    "package:win": "npm run build && electron-builder --win",
-    "package:mac": "npm run build && electron-builder --mac",
-    "package:linux": "npm run build && electron-builder --linux",
-    "package:all": "npm run build && electron-builder --win --mac --linux",
+    "package:win": "npm run build && npm run electron:rebuild && npm run verify:native && electron-builder --win",
+    "package:mac": "npm run build && npm run electron:rebuild && npm run verify:native && electron-builder --mac",
+    "package:linux": "npm run build && npm run electron:rebuild && npm run verify:native && electron-builder --linux",
+    "package:all": "npm run build && npm run electron:rebuild && npm run verify:native && electron-builder --win --mac --linux",
     "generate-icons": "node scripts/generate-icons.js",
     "prepare": "husky"
   },
@@ -68,6 +69,7 @@
   "build": {
     "appId": "tv.ottery.live",
     "productName": "Ottery Live",
+    "npmRebuild": false,
     "copyright": "Copyright © 2026 Ottery Live",
     "directories": {
       "output": "dist/installers"

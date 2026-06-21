@@ -1,11 +1,18 @@
 #!/usr/bin/env node
-// Rebuilds native modules for Electron's Node version.
-// Uses the programmatic API to avoid electron-rebuild CLI's yargs/ESM issues on Node 25+.
+// Rebuilds native modules (better-sqlite3, keytar, ...) against the ABI of the
+// Electron version that is actually installed. Hardcoding the version lets it
+// drift from devDependencies, which ships a binary with the wrong
+// NODE_MODULE_VERSION and crashes the packaged app on load before any window
+// or log appears. Always read it from the installed electron package.
 const { rebuild } = require('@electron/rebuild');
 
-rebuild({ buildPath: process.cwd(), electronVersion: '33.0.0' })
+const electronVersion = require('electron/package.json').version;
+
+console.log(`Rebuilding native modules for Electron ${electronVersion}...`);
+
+rebuild({ buildPath: process.cwd(), electronVersion, force: true })
   .then(() => {
-    console.log('Native modules rebuilt for Electron.');
+    console.log(`Native modules rebuilt for Electron ${electronVersion}.`);
     process.exit(0);
   })
   .catch((err) => {

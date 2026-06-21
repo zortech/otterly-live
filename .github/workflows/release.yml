@@ -78,6 +78,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Native modules (better-sqlite3) ship with the wrong ABI unless rebuilt
+      # for the bundled Electron's NODE_MODULE_VERSION. npmRebuild is disabled
+      # in electron-builder config, so we rebuild explicitly and verify here.
+      - name: Rebuild native modules for Electron ABI
+        run: npm run electron:rebuild
+
+      - name: Verify native modules load under Electron ABI
+        run: npm run verify:native
+
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         env:

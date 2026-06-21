@@ -3,6 +3,28 @@ const path = require('path');
 
 const isDev = process.env.OTTERY_DEV === 'true' || !app.isPackaged;
 
+// Surface fatal startup errors instead of dying silently. On a packaged
+// Windows GUI app there is no console, so an unhandled rejection in main()
+// (e.g. a native-module ABI mismatch in better-sqlite3/keytar) would
+// otherwise show no window, no dialog, and no feedback at all.
+function reportFatal(context, err) {
+  try {
+    const logger = require('../server/lib/logger');
+    logger.error(`[fatal] ${context}:`, err);
+  } catch { /* logger itself may be unavailable */ }
+  try {
+    dialog.showErrorBox(
+      'Ottery Live failed to start',
+      `${context}\n\n${(err && err.stack) || err}\n\n` +
+      `Logs: ${app.getPath('logs')}`
+    );
+  } catch { /* dialog unavailable before ready — nothing more we can do */ }
+  app.exit(1);
+}
+
+process.on('uncaughtException', (err) => reportFatal('Uncaught exception', err));
+process.on('unhandledRejection', (err) => reportFatal('Unhandled rejection', err));
+
 let mainWindow;
 let tray;
 
@@ -16,7 +38,7 @@ if (!gotLock) {
     if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
   });
 
-  app.whenReady().then(main);
+  app.whenReady().then(main).catch((err) => reportFatal('Startup failed', err));
 }
 
 async function main() {
