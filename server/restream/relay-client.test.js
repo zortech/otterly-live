@@ -11,6 +11,15 @@ const mockSocket = {
 };
 const mockIoConnect = jest.fn(() => mockSocket);
 
+// relay-client uses undici's fetch directly (not global fetch), so we mock
+// the undici module. Agent is a passthrough — its only role in prod is to
+// allow self-signed certs against the relay.
+const mockUndiciFetch = jest.fn();
+jest.mock('undici', () => ({
+  fetch: mockUndiciFetch,
+  Agent: jest.fn(),
+}));
+
 jest.mock('socket.io-client', () => ({ io: mockIoConnect }), { virtual: true });
 jest.mock('../settings', () => ({ get: jest.fn() }));
 jest.mock('../lib/logger', () => ({
@@ -33,9 +42,9 @@ function stubSettings(url = 'https://relay.example.com', apiToken = 'testtoken')
   });
 }
 
-// Helper: stub global fetch
+// Helper: stub the undici fetch mock
 function stubFetch(status = 200, body = {}) {
-  global.fetch = jest.fn(async () => ({
+  mockUndiciFetch.mockImplementation(async () => ({
     ok:   status >= 200 && status < 300,
     status,
     json: jest.fn(async () => body),
@@ -44,12 +53,15 @@ function stubFetch(status = 200, body = {}) {
 
 beforeEach(() => {
   // Reset singleton state between tests
-  relayClient._socket    = null;
-  relayClient._sessionId = null;
+  relayClient._socket      = null;
+  relayClient._sessionId   = null;
+  relayClient._undiciAgent = null;
+  relayClient._httpsAgent  = null;
   mockSocketOn.mockReset();
   mockSocketEmit.mockReset();
   mockSocketDisconnect.mockReset();
   mockIoConnect.mockClear();
+  mockUndiciFetch.mockReset();
   eventBus.removeAllListeners();
 });
 
@@ -62,7 +74,7 @@ describe('startSession — HTTPS enforcement', () => {
     stubSettings('http://relay.example.com');
     stubFetch(200, {});  // set up a mock fetch so we can assert it wasn't called
     await expect(relayClient.startSession([])).rejects.toThrow(/HTTPS/i);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockUndiciFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -78,7 +90,7 @@ describe('startSession — success', () => {
     // Suppress connectStatusSocket socket setup (mockSocketOn doesn't run real code)
     await relayClient.startSession([{ serviceId: 1, platform: 'twitch', rtmpUrl: 'rtmp://x/y', streamKey: 'k' }]);
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockUndiciFetch).toHaveBeenCalledWith(
       'https://relay.example.com/api/sessions',
       expect.objectContaining({
         method: 'POST',
@@ -98,6 +110,54 @@ describe('startSession — success', () => {
     expect(relayClient._sessionId).toBe('sess-abc');
     expect(result.sessionId).toBe('sess-abc');
     expect(result.ingestToken).toBe('tok-xyz');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// startSession — TLS agent configuration
+// ---------------------------------------------------------------------------
+
+describe('startSession — TLS verification', () => {
+  const { Agent } = require('undici');
+
+  function stubTls({ caCert = null, allowSelfSigned = null } = {}) {
+    settings.get.mockImplementation(async (key) => {
+      if (key === 'relay.url')             return 'https://relay.example.com';
+      if (key === 'relay.apiToken')        return 'tok';
+      if (key === 'relay.caCert')          return caCert;
+      if (key === 'relay.allowSelfSigned') return allowSelfSigned;
+      return null;
+    });
+  }
+
+  it('verifies against the system trust store by default (no ca, no override)', async () => {
+    stubTls();
+    stubFetch(200, { sessionId: 's', ingestToken: 't', rtmpsPort: 1936 });
+    Agent.mockClear();
+
+    await relayClient.startSession([]);
+
+    expect(Agent).toHaveBeenCalledWith({ connect: {} });
+  });
+
+  it('pins the relay CA cert when relay.caCert is set', async () => {
+    stubTls({ caCert: 'PEM-DATA' });
+    stubFetch(200, { sessionId: 's' });
+    Agent.mockClear();
+
+    await relayClient.startSession([]);
+
+    expect(Agent).toHaveBeenCalledWith({ connect: { ca: 'PEM-DATA' } });
+  });
+
+  it('disables verification only when relay.allowSelfSigned is true', async () => {
+    stubTls({ allowSelfSigned: true });
+    stubFetch(200, { sessionId: 's' });
+    Agent.mockClear();
+
+    await relayClient.startSession([]);
+
+    expect(Agent).toHaveBeenCalledWith({ connect: { rejectUnauthorized: false } });
   });
 });
 
@@ -126,7 +186,7 @@ describe('endSession', () => {
 
     await relayClient.endSession();
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockUndiciFetch).toHaveBeenCalledWith(
       'https://relay.example.com/api/sessions/sess-del',
       expect.objectContaining({ method: 'DELETE' })
     );
@@ -139,7 +199,7 @@ describe('endSession', () => {
 
     await relayClient.endSession();
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockUndiciFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -163,9 +223,12 @@ describe('connectStatusSocket — event bridging', () => {
     expect(received[0].serviceId).toBe(1);
   });
 
-  it('bridges session.ended relay event to relay.fallback on local eventBus', () => {
-    const fallbacks = [];
-    eventBus.on('relay.fallback', (d) => fallbacks.push(d));
+  it('bridges session.ended relay event to relay.error on local eventBus', () => {
+    // Remote mode never silently falls back to local — see relay-client.js
+    // session.ended handler. The relay ending the session unexpectedly is a
+    // hard error surfaced via 'relay.error'.
+    const errors = [];
+    eventBus.on('relay.error', (d) => errors.push(d));
 
     relayClient.connectStatusSocket('sess-2', 'tok-2', 'https://relay.example.com', 1936);
 
@@ -173,8 +236,8 @@ describe('connectStatusSocket — event bridging', () => {
     expect(call).toBeDefined();
     call[1]();
 
-    expect(fallbacks).toHaveLength(1);
-    expect(fallbacks[0].reason).toMatch(/unexpected/i);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].reason).toMatch(/unexpected/i);
   });
 
   it('emits join with sessionId and ingestToken on connect', () => {

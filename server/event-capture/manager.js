@@ -10,6 +10,15 @@ const MAX_FAILURES = 5;
 const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 32000, 60000];
 const CLEAN_RECONNECT_DELAY_MS = 5000;
 
+// Maps internal worker `state` values to the `status` vocabulary used by the
+// live capture.* events (and expected by socket consumers like the overlay).
+const STATE_TO_STATUS = {
+  connecting:   'connecting',
+  connected:    'live',
+  disconnected: 'stopped',
+  error:        'error',
+};
+
 // Lazy-require worker classes by platform to avoid loading all at startup
 function loadWorker(platform) {
   switch (platform) {
@@ -245,6 +254,11 @@ class EventCaptureManager {
         serviceId: id,
         platform: entry.svc.platform,
         state: entry.state,
+        // Mirror entry.state onto the `status` field using the same vocabulary
+        // as the live capture.* events, so socket snapshot consumers (overlay,
+        // dashboard) hydrate identically whether they connect before or after
+        // capture starts. See STATE_TO_STATUS.
+        status: STATE_TO_STATUS[entry.state] ?? entry.state,
         failures: entry.failures,
       };
     }

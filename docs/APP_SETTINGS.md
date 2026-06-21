@@ -43,6 +43,12 @@ exports.up = (knex) =>
 | `relay.mode` | string | `"local"` | SQLite | Restream mode: `"local"` (FFmpeg on this machine) or `"remote"` (relay server fan-out) |
 | `relay.url` | string | `""` | SQLite | Base URL of the relay server, e.g. `https://relay.example.com` |
 | `relay.apiToken` | string | `""` | **keychain** | API token for authenticating with the relay server (256-bit random hex) |
+| `relay.caCert` | string | `""` | SQLite | PEM cert to pin a self-signed relay (TLS still verified against it). Preferred over disabling verification |
+| `relay.allowSelfSigned` | boolean | `false` | SQLite | Escape hatch: disable TLS verification for the relay connection. **MITM-unsafe** — use `relay.caCert` instead unless impossible |
+
+> TLS: by default the relay connection is verified against the system trust
+> store. For a self-signed relay, set `relay.caCert` to pin its certificate.
+> `relay.allowSelfSigned` is a last resort and is logged loudly when active.
 
 ## Overlay Settings Pattern
 
@@ -106,6 +112,8 @@ const DEFAULTS = {
   'relay.mode': 'local',
   'relay.url': '',
   'relay.apiToken': '',
+  'relay.caCert': '',
+  'relay.allowSelfSigned': false,
 };
 
 const settings = {

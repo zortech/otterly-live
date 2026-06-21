@@ -160,6 +160,45 @@ describe('_handleExit', () => {
 });
 
 // ---------------------------------------------------------------------------
+// status reporting during restart backoff
+// ---------------------------------------------------------------------------
+
+describe('status during restart backoff', () => {
+  it("reports 'reconnecting' (not 'live') while a crashed platform awaits restart", async () => {
+    jest.useFakeTimers();
+    const fakeProc = makeFakeProc();
+    spawn.mockReturnValue(fakeProc);
+
+    await manager.startPlatform(makeService({ id: 40 }));
+    expect(manager.getStatusForService(40)).toBe('live');
+
+    fakeProc.emit('exit', 1, null); // crash → restart-backoff slot, proc = null
+
+    expect(manager.getStatusForService(40)).toBe('reconnecting');
+    expect(manager.getStatus()[40].status).toBe('reconnecting');
+
+    jest.useRealTimers();
+  });
+
+  it('emits restream.reconnecting with the attempt number on crash', async () => {
+    jest.useFakeTimers();
+    const fakeProc = makeFakeProc();
+    spawn.mockReturnValue(fakeProc);
+
+    const events = [];
+    eventBus.on('restream.reconnecting', (d) => events.push(d));
+
+    await manager.startPlatform(makeService({ id: 41 }));
+    fakeProc.emit('exit', 1, null);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ serviceId: 41, platform: 'twitch', attempt: 1, status: 'reconnecting' });
+
+    jest.useRealTimers();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // stopPlatform
 // ---------------------------------------------------------------------------
 
@@ -181,6 +220,46 @@ describe('stopPlatform', () => {
 
   it('is a no-op when the service is not running', () => {
     expect(() => manager.stopPlatform(9999)).not.toThrow();
+  });
+
+  it('does not throw and removes the entry when stopped during restart backoff (proc is null)', async () => {
+    jest.useFakeTimers();
+    const fakeProc = makeFakeProc();
+    spawn.mockReturnValue(fakeProc);
+
+    await manager.startPlatform(makeService({ id: 30 }));
+    fakeProc.emit('exit', 1, null); // schedules restart, sets entry.proc = null
+
+    expect(manager.processes.get(30).proc).toBeNull();
+    expect(() => manager.stopPlatform(30)).not.toThrow();
+    expect(manager.processes.has(30)).toBe(false);
+
+    jest.useRealTimers();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// restart timer hygiene
+// ---------------------------------------------------------------------------
+
+describe('startPlatform during restart backoff', () => {
+  it('cancels the pending restart timer when manually restarted, leaving exactly one live proc', async () => {
+    jest.useFakeTimers();
+    const first  = makeFakeProc();
+    const second = makeFakeProc();
+    const procs = [first, second];
+    let idx = 0;
+    spawn.mockImplementation(() => procs[idx++]);
+
+    await manager.startPlatform(makeService({ id: 31 }));
+    first.emit('exit', 1, null);              // schedules a restart timer
+    await manager.startPlatform(makeService({ id: 31 })); // manual restart during backoff
+
+    expect(spawn).toHaveBeenCalledTimes(2);   // initial + manual restart
+    jest.runAllTimers();                      // the orphaned timer must NOT spawn a third
+    expect(spawn).toHaveBeenCalledTimes(2);
+
+    jest.useRealTimers();
   });
 });
 
@@ -276,18 +355,21 @@ describe('remote mode', () => {
     manager.processes.delete('__relay__');
   });
 
-  it('relay.mode=remote emits relay.fallback and falls back when relayClient.startSession rejects', async () => {
+  it('relay.mode=remote emits relay.error and does NOT fall back when relayClient.startSession rejects', async () => {
+    // No silent fallback to local: the user picked remote because their
+    // uplink can't sustain N platforms, and silently restarting locally
+    // would saturate the link and corrupt every destination. See the
+    // comment in _startRemoteSession (restream-manager.js).
     stubRemoteMode();
     relayClient.startSession.mockRejectedValue(new Error('relay unreachable'));
 
-    const fallbacks = [];
-    eventBus.on('relay.fallback', (d) => fallbacks.push(d));
+    const errors = [];
+    eventBus.on('relay.error', (d) => errors.push(d));
 
     await manager._startRemoteSession();
 
-    expect(fallbacks.length).toBeGreaterThan(0);
-    expect(fallbacks[0].reason).toMatch(/relay unreachable/);
-    // Falls back to _startLocalSession — db throws (mocked as {}), caught internally
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].reason).toMatch(/relay unreachable/);
     expect(spawn).not.toHaveBeenCalled();
   });
 
@@ -303,5 +385,50 @@ describe('remote mode', () => {
     expect(relayClient.endSession).toHaveBeenCalledTimes(1);
     expect(relayProc.kill).toHaveBeenCalledWith('SIGTERM');
     expect(manager.processes.has('__relay__')).toBe(false);
+  });
+
+  it('onStreamEnd tears down a running passthrough even if relay.mode now reads local', async () => {
+    // The user may flip relay.mode mid-stream; onStreamEnd must clean up what
+    // is actually running, not what the setting currently says.
+    settings.get.mockResolvedValue('local');
+    relayClient.endSession.mockResolvedValue();
+
+    const relayProc = makeFakeProc();
+    manager.processes.set('__relay__', { proc: relayProc, svc: null, restarts: 0, stopping: false, restartTimer: null, startedAt: Date.now() });
+
+    await manager.onStreamEnd();
+
+    expect(relayProc.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(relayClient.endSession).toHaveBeenCalledTimes(1);
+    expect(manager.processes.has('__relay__')).toBe(false);
+  });
+
+  it('_handleFatalRelayError stops the passthrough so FFmpeg cannot reconnect-loop a dead session', () => {
+    relayClient.endSession.mockResolvedValue();
+
+    const relayProc = makeFakeProc();
+    manager.processes.set('__relay__', { proc: relayProc, svc: null, restarts: 2, stopping: false, restartTimer: null, startedAt: Date.now() });
+
+    manager._handleFatalRelayError();
+
+    expect(relayProc.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(manager.processes.has('__relay__')).toBe(false);
+  });
+
+  it('_handleFatalRelayError is a no-op when no passthrough is running', () => {
+    expect(() => manager._handleFatalRelayError()).not.toThrow();
+    expect(relayClient.endSession).not.toHaveBeenCalled();
+  });
+
+  it('_spawnRelayFFmpeg inherits the restart counter from a dead slot so backoff is not silently reset', async () => {
+    stubRemoteMode();
+    spawn.mockReturnValue(makeFakeProc());
+    // Dead slot left by _handleRelayExit after several reconnect attempts.
+    manager.processes.set('__relay__', { proc: null, svc: null, restarts: 3, stopping: false, restartTimer: null, startedAt: Date.now() });
+
+    await manager._spawnRelayFFmpeg({ ingestToken: 'tok', rtmpsPort: 1936 });
+
+    expect(manager.processes.get('__relay__').restarts).toBe(3);
+    manager.processes.delete('__relay__');
   });
 });

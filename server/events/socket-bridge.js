@@ -30,9 +30,10 @@ function attachSocketBridge(io, eventBus, getSessionState, getRestreamStatus, ge
   });
 
   eventBus.on('event',             (e) => io.emit('ottery:event', e));
-  eventBus.on('restream.started',  (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.stopped',  (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.error',    (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.started',      (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.stopped',      (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.error',        (d) => io.emit('ottery:status', d));
+  eventBus.on('restream.reconnecting', (d) => io.emit('ottery:status', d));
   eventBus.on('restream.progress', (d) => io.emit('ottery:progress', d));
   eventBus.on('restream.warning',  (d) => io.emit('ottery:warning',  d));
   eventBus.on('session.started',  (d) => io.emit('ottery:session', { state: 'live',  sessionId: d?.sessionId ?? null }));

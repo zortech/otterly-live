@@ -31,6 +31,8 @@ const DEFAULTS = {
   'relay.mode': 'local',
   'relay.url': '',
   'relay.apiToken': '',
+  'relay.caCert': '',            // PEM to pin a self-signed relay cert (preferred)
+  'relay.allowSelfSigned': false, // escape hatch: disable TLS verification (MITM-unsafe)
 };
 
 const cache = new Map();

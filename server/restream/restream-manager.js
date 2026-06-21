@@ -15,15 +15,38 @@ function redactKey(line) {
 }
 
 function buildDestUrl(svc) {
-  return `${svc.rtmp_url}/${svc.stream_key}`;
+  // Strip any trailing slash on the configured RTMP URL so we never emit a
+  // double slash (`app//key`) — some ingest servers reject that.
+  return `${svc.rtmp_url.replace(/\/+$/, '')}/${svc.stream_key}`;
 }
+
+// A process that ran at least this long before exiting is considered to have
+// started successfully, so its crash-restart counter resets. Without this a
+// stream running for hours would be permanently killed by a few transient,
+// widely-spaced crashes that happen to total the restart cap.
+const STABLE_RUNTIME_MS = 30_000;
 
 class RestreamManager {
   constructor() {
-    // Map<serviceId, { proc, svc, restarts, stopping, restartTimer }>
+    // Map<serviceId, { proc, svc, restarts, stopping, restartTimer, startedAt }>
     this.processes = new Map();
     this.rtmpPort = null;
     this.incomingKey = null;
+
+    // A fatal relay error (most importantly the relay ending our session
+    // unexpectedly) must stop the OBS→relay passthrough. Otherwise FFmpeg
+    // keeps reconnect-looping forever against a dead session token while the
+    // UI shows an error — an inconsistent, resource-wasting state.
+    eventBus.on('relay.error', () => this._handleFatalRelayError());
+  }
+
+  _handleFatalRelayError() {
+    // Only act when a passthrough is actually running. Most relay.error emits
+    // fire before a passthrough exists or right as it's torn down — no-ops.
+    if (!this.processes.has('__relay__')) return;
+    this._teardownRelaySession().catch((err) =>
+      logger.warn('[restream] teardown after fatal relay error failed:', err.message)
+    );
   }
 
   /**
@@ -124,8 +147,15 @@ class RestreamManager {
    * Spawns the single local FFmpeg passthrough: OBS → relay RTMPS ingest.
    */
   async _spawnRelayFFmpeg({ ingestToken, rtmpsPort }) {
-    const relayUrl  = await settings.get('relay.url');
-    const relayHost = new URL(relayUrl).hostname;
+    let relayHost;
+    try {
+      relayHost = new URL(await settings.get('relay.url')).hostname;
+    } catch (err) {
+      logger.error('[restream] invalid relay URL — cannot start passthrough:', err.message);
+      eventBus.emit('relay.error', { reason: 'invalid_relay_url' });
+      await this._teardownRelaySession();
+      return;
+    }
     const dest = `rtmps://${relayHost}:${rtmpsPort}/live/${ingestToken}`;
     const src  = `rtmp://127.0.0.1:${this.rtmpPort}/live/${this.incomingKey}`;
 
@@ -159,7 +189,12 @@ class RestreamManager {
     });
     proc.on('exit', (code, signal) => this._handleRelayExit(code, signal, ingestToken, rtmpsPort));
 
-    this.processes.set('__relay__', { proc, svc: null, restarts: 0, stopping: false, restartTimer: null });
+    // Carry over the restart count from the dead slot left by _handleRelayExit,
+    // otherwise every respawn would reset it to 0 and the exponential backoff
+    // above would be stuck at 1s forever.
+    const existingRelay = this.processes.get('__relay__');
+    const inheritedRestarts = existingRelay ? existingRelay.restarts : 0;
+    this.processes.set('__relay__', { proc, svc: null, restarts: inheritedRestarts, stopping: false, restartTimer: null, startedAt: Date.now() });
     logger.info('[restream] relay passthrough started');
     eventBus.emit('relay.connected', { status: 'relaying' });
   }
@@ -171,6 +206,13 @@ class RestreamManager {
     if (code === 0) {
       this.processes.delete('__relay__');
       return;
+    }
+
+    // A passthrough that stayed up a while resets its backoff, so a single
+    // brief blip after hours of streaming reconnects fast instead of waiting
+    // out a backoff grown long during an earlier outage.
+    if (entry.startedAt && Date.now() - entry.startedAt >= STABLE_RUNTIME_MS) {
+      entry.restarts = 0;
     }
 
     // Indefinite reconnect: relay mode exists because the user can't afford
@@ -221,14 +263,17 @@ class RestreamManager {
    * Called by RtmpManager when OBS disconnects. Stops all FFmpeg processes.
    */
   async onStreamEnd() {
-    const mode = await settings.get('relay.mode');
-    if (mode === 'remote') {
+    // Tear down whatever is actually running rather than re-reading
+    // relay.mode: the user may have flipped the setting mid-stream, and
+    // trusting the current setting would leak processes from the other mode
+    // (e.g. switch local→remote, then onStreamEnd never calls stopAll).
+    if (this.processes.has('__relay__') || relayClient.sessionId) {
       this._stopRelayProc();
       try { await relayClient.endSession(); } catch (err) {
         logger.warn('[restream] relay endSession failed:', err.message);
       }
-      return;
     }
+    // stopAll skips '__relay__', so it's safe to always run for local procs.
     this.stopAll();
   }
 
@@ -244,8 +289,12 @@ class RestreamManager {
         logger.warn(`[restream] startPlatform called for ${svc.platform} (${svc.id}) — already running`);
         return;
       }
-      // Dead proc slot waiting for restart — carry over the restart count, then clear the stale entry
+      // Dead proc slot waiting for restart — carry over the restart count, then clear the stale entry.
+      // Cancel the pending restart timer first: if this start was triggered
+      // manually (e.g. toggle during the backoff window) the orphaned timer
+      // would later fire a redundant startPlatform.
       inheritedRestarts = existing.restarts;
+      if (existing.restartTimer) clearTimeout(existing.restartTimer);
       this.processes.delete(svc.id);
     }
 
@@ -309,7 +358,7 @@ class RestreamManager {
     });
     proc.on('exit', (code, signal) => this._handleExit(svc, code, signal));
 
-    this.processes.set(svc.id, { proc, svc, restarts: inheritedRestarts, stopping: false, restartTimer: null });
+    this.processes.set(svc.id, { proc, svc, restarts: inheritedRestarts, stopping: false, restartTimer: null, startedAt: Date.now() });
 
     logger.info(`[restream] started ${svc.platform} (serviceId=${svc.id})`);
     eventBus.emit('restream.started', { serviceId: svc.id, platform: svc.platform, status: 'live' });
@@ -328,7 +377,9 @@ class RestreamManager {
       entry.restartTimer = null;
     }
 
-    entry.proc.kill('SIGTERM');
+    // proc is null while a crashed platform sits in its restart-backoff slot;
+    // stopping during that window must not throw.
+    entry.proc?.kill('SIGTERM');
     this.processes.delete(serviceId);
 
     logger.info(`[restream] stopped serviceId=${serviceId}`);
@@ -426,14 +477,17 @@ class RestreamManager {
       // svc and isn't a platform fan-out, so it doesn't belong in the
       // per-platform status snapshot consumed by the UI.
       if (!entry.svc) continue;
-      out[id] = { serviceId: id, platform: entry.svc.platform, status: 'live' };
+      // proc is null while the platform sits in its crash-restart backoff —
+      // report 'reconnecting' rather than misleadingly claiming 'live'.
+      out[id] = { serviceId: id, platform: entry.svc.platform, status: entry.proc ? 'live' : 'reconnecting' };
     }
     return out;
   }
 
   getStatusForService(serviceId) {
     const entry = this.processes.get(serviceId);
-    return entry && entry.svc ? 'live' : 'stopped';
+    if (!entry || !entry.svc) return 'stopped';
+    return entry.proc ? 'live' : 'reconnecting';
   }
 
   _handleExit(svc, code, signal) {
@@ -450,7 +504,13 @@ class RestreamManager {
       return;
     }
 
-    // Crash — attempt auto-restart with exponential backoff
+    // Crash — attempt auto-restart with exponential backoff.
+    // Reset the counter first if this run was stable long enough to count as a
+    // successful start, so transient crashes spread across a long stream don't
+    // accumulate into a permanent give-up.
+    if (entry.startedAt && Date.now() - entry.startedAt >= STABLE_RUNTIME_MS) {
+      entry.restarts = 0;
+    }
     if (entry.restarts >= 3) {
       this.processes.delete(svc.id);
       logger.error(`[restream] ${svc.platform} (${svc.id}) exceeded max restarts — giving up`);
@@ -463,6 +523,13 @@ class RestreamManager {
     // Mark proc as dead so startPlatform knows this is a restart slot, not a live process
     entry.proc = null;
     logger.warn(`[restream] ${svc.platform} (${svc.id}) crashed (code=${code} signal=${signal}), restart ${entry.restarts}/3 in ${delay}ms`);
+    eventBus.emit('restream.reconnecting', {
+      serviceId: svc.id,
+      platform:  svc.platform,
+      attempt:   entry.restarts,
+      delayMs:   delay,
+      status:    'reconnecting',
+    });
 
     entry.restartTimer = setTimeout(() => {
       // Guard: service may have been explicitly stopped while waiting to restart

@@ -293,3 +293,19 @@ describe('restart', () => {
     expect(manager.workers.get(1).svc).toEqual(freshSvc);
   });
 });
+
+// ---------------------------------------------------------------------------
+// status snapshot
+// ---------------------------------------------------------------------------
+describe('status', () => {
+  it('mirrors worker state onto a `status` field matching the capture.* event vocabulary', async () => {
+    StreamService.getWithCredentials.mockResolvedValue(makeSvc());
+    await manager.start(1);
+    const entry = manager.workers.get(1);
+    entry.worker.emit('connected');
+
+    // `state: 'connected'` must surface as `status: 'live'` so socket snapshot
+    // consumers (chat overlay, dashboard) hydrate the same as a live capture.started.
+    expect(manager.status()[1]).toMatchObject({ state: 'connected', status: 'live' });
+  });
+});
