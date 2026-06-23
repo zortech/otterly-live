@@ -139,6 +139,17 @@ class EventCaptureManager {
         entry.state = 'error';
         this.workers.delete(serviceId);
         logger.error(`[capture-manager] ${entry.svc.platform} (serviceId=${serviceId}) permanent error — ${errMsg}`);
+
+        // If the worker reported that the credentials need re-authorization (e.g. an
+        // EventSub subscription rejected for a missing OAuth scope), flag the service
+        // and raise an actionable re-auth prompt — the same path the token manager uses.
+        if (err.requiresReauth) {
+          db('stream_services').where({ id: serviceId })
+            .update({ needs_reauth: true, updated_at: new Date().toISOString() })
+            .catch((dbErr) => logger.error('[capture-manager] failed to set needs_reauth', dbErr));
+          eventBus.emit('auth.required', { serviceId, platform: entry.svc.platform, message: errMsg });
+        }
+
         eventBus.emit('capture.error', { serviceId, platform: entry.svc.platform, reason: err?.code ?? 'permanent', status: 'error' });
         return;
       }

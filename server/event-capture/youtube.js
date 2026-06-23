@@ -110,8 +110,12 @@ class YouTubeCapture extends BaseCapture {
    * Returns liveChatId string or null if no active broadcast.
    */
   async _fetchLiveChatId() {
+    // NOTE: broadcastStatus, mine, and id are mutually exclusive filters in the
+    // liveBroadcasts.list API — sending more than one yields HTTP 400
+    // "Incompatible parameters specified". broadcastStatus=active already scopes
+    // results to the authenticated user's broadcasts, so we must NOT also pass mine=true.
     const doFetch = async (token) =>
-      fetch(`${YOUTUBE_BROADCASTS_API}?part=snippet&broadcastStatus=active&broadcastType=all&mine=true`, {
+      fetch(`${YOUTUBE_BROADCASTS_API}?part=snippet&broadcastStatus=active&broadcastType=all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -129,13 +133,29 @@ class YouTubeCapture extends BaseCapture {
       }
     }
 
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`liveBroadcasts.list failed (HTTP ${res.status}): ${body.slice(0, 200)}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data?.items?.[0]?.snippet?.liveChatId ?? null;
     }
 
-    const data = await res.json();
-    return data?.items?.[0]?.snippet?.liveChatId ?? null;
+    // Token still rejected after a refresh — genuine auth problem; surface it so the
+    // user is prompted to reconnect their account.
+    if (res.status === 401) {
+      throw Object.assign(
+        new Error('YouTube rejected the access token — reconnect your YouTube account'),
+        { code: 'NO_TOKEN' }
+      );
+    }
+
+    // Any other non-OK response (400 bad request, 403 quota/forbidden, 5xx) is treated
+    // as non-fatal: log it and report "no active broadcast" so the worker keeps polling
+    // instead of burning its failure budget and permanently giving up on chat capture.
+    const body = await res.text().catch(() => '');
+    logger.warn(
+      `[youtube-capture:${this.svc.id}] liveBroadcasts.list HTTP ${res.status}: ` +
+      `${body.slice(0, 200)} — will keep polling`
+    );
+    return null;
   }
 
   // ── Private: gRPC connection ──────────────────────────────────────────────

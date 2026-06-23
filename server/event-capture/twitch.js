@@ -145,8 +145,6 @@ class TwitchCapture extends BaseCapture {
 
   async _handleWelcome(msg) {
     this._sessionId = msg.payload.session.id;
-    this._connected = true;
-    this.emit('connected');
 
     // Set a 9-second safety timer — if subscriptions don't complete in time, emit error
     this._subscribeTimer = setTimeout(() => {
@@ -164,6 +162,13 @@ class TwitchCapture extends BaseCapture {
       this._subscribeTimer = null;
       throw err;
     }
+
+    // Only report "connected" once the chat subscription is actually active. Emitting
+    // it earlier (on session_welcome) made the dashboard show a live capture even when
+    // the chat.message subscription was later rejected (e.g. missing OAuth scope),
+    // leaving the unified event feed silently empty.
+    this._connected = true;
+    this.emit('connected');
 
     this._resetKeepalive();
   }
@@ -243,11 +248,25 @@ class TwitchCapture extends BaseCapture {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = `Failed to subscribe to ${sub.type}: ${data.message || res.status}`;
-        if (res.status === 401 || res.status === 403 || (data.message && data.message.includes('authorization'))) {
-          throw Object.assign(new Error(msg), { permanent: true });
+        const detail = data.message || res.status;
+        const isAuthError =
+          res.status === 401 ||
+          res.status === 403 ||
+          (data.message && data.message.toLowerCase().includes('authorization'));
+        if (isAuthError) {
+          // The saved token is missing a scope this subscription needs (commonly
+          // user:read:chat, granted only on a fresh authorization). Flag it for
+          // re-auth so the dashboard shows an actionable "reconnect" prompt rather
+          // than a silent, eventless "connected" capture.
+          throw Object.assign(
+            new Error(
+              `Twitch rejected the '${sub.type}' subscription (${detail}) — your saved ` +
+              `login is missing a required permission. Reconnect your Twitch account to grant chat access.`
+            ),
+            { permanent: true, requiresReauth: true, code: 'MISSING_SCOPE' }
+          );
         }
-        throw new Error(msg);
+        throw new Error(`Failed to subscribe to ${sub.type}: ${detail}`);
       }
     }
   }

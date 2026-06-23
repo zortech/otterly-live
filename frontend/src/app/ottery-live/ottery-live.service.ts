@@ -69,6 +69,7 @@ export interface PlatformWarning {
 export interface AuthRequired {
   serviceId: number;
   platform: string;
+  message?: string;
 }
 
 export interface RelaySocketEvent {

@@ -336,7 +336,7 @@ import { StreamService } from '../stream-services.service';
     @for (item of authRequiredList(); track item.serviceId) {
       <div class="auth-banner">
         <mat-icon>warning</mat-icon>
-        <span>{{ item.platform | titlecase }}: Re-authentication required.</span>
+        <span>{{ item.platform | titlecase }}: {{ item.message || 'Re-authentication required.' }}</span>
         <button mat-button style="color:var(--error-color)" (click)="reconnect(item.serviceId)">Reconnect</button>
         <button mat-icon-button (click)="service.clearAuthRequired(item.serviceId)">
           <mat-icon>close</mat-icon>
