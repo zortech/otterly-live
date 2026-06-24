@@ -90,6 +90,13 @@ class YouTubeCapture extends BaseCapture {
           await this._connectGrpc();
         }
       } catch (err) {
+        // A permanent error (e.g. credentials need re-auth) won't fix itself by
+        // polling — stop and surface it so the manager flags re-auth and gives up.
+        if (err.permanent) {
+          this._stopBroadcastPolling();
+          this.emit('error', err);
+          return;
+        }
         logger.warn(`[youtube-capture:${this.svc.id}] broadcast poll error: ${err.message}`);
       }
     }, BROADCAST_POLL_INTERVAL_MS);
@@ -138,24 +145,41 @@ class YouTubeCapture extends BaseCapture {
       return data?.items?.[0]?.snippet?.liveChatId ?? null;
     }
 
-    // Token still rejected after a refresh — genuine auth problem; surface it so the
-    // user is prompted to reconnect their account.
-    if (res.status === 401) {
+    const body = await res.text().catch(() => '');
+    const reason = this._extractErrorReason(body);
+
+    // 401 (token still rejected after a refresh) or 403 insufficientPermissions: the
+    // saved credentials genuinely lack permission to read live broadcasts. Surface a
+    // permanent re-auth error so the dashboard prompts the user to reconnect, rather
+    // than polling forever in silence.
+    if (res.status === 401 || (res.status === 403 && reason === 'insufficientPermissions')) {
       throw Object.assign(
-        new Error('YouTube rejected the access token — reconnect your YouTube account'),
-        { code: 'NO_TOKEN' }
+        new Error('YouTube rejected the credentials — reconnect your YouTube account'),
+        { code: 'NO_TOKEN', permanent: true, requiresReauth: true }
       );
     }
 
-    // Any other non-OK response (400 bad request, 403 quota/forbidden, 5xx) is treated
-    // as non-fatal: log it and report "no active broadcast" so the worker keeps polling
-    // instead of burning its failure budget and permanently giving up on chat capture.
-    const body = await res.text().catch(() => '');
+    // Any other non-OK response (transient 5xx, quotaExceeded which resets daily, a
+    // malformed request) is treated as non-fatal: log it and report "no active
+    // broadcast" so the worker keeps polling instead of burning its failure budget.
     logger.warn(
-      `[youtube-capture:${this.svc.id}] liveBroadcasts.list HTTP ${res.status}: ` +
-      `${body.slice(0, 200)} — will keep polling`
+      `[youtube-capture:${this.svc.id}] liveBroadcasts.list HTTP ${res.status}` +
+      `${reason ? ` (${reason})` : ''}: ${body.slice(0, 200)} — will keep polling`
     );
     return null;
+  }
+
+  /**
+   * Pull the first error reason (e.g. 'insufficientPermissions', 'quotaExceeded')
+   * out of a YouTube Data API error response body. Returns null if unparseable.
+   */
+  _extractErrorReason(body) {
+    try {
+      const parsed = JSON.parse(body);
+      return parsed?.error?.errors?.[0]?.reason ?? parsed?.error?.status ?? null;
+    } catch {
+      return null;
+    }
   }
 
   // ── Private: gRPC connection ──────────────────────────────────────────────
