@@ -1,14 +1,11 @@
-## What's new in v0.1.6
+## What's new in v0.1.7
 
-### Windows startup crash fixed
-- **App now launches on Windows.** The packaged `better-sqlite3` was built for Node's ABI instead of the bundled Electron's ABI, so it failed to load on launch — the window never appeared, with no error and no log. Native modules are now rebuilt for the Electron ABI during packaging.
-- **undici pinned to v6.** `undici@8` calls an API missing from the Node version Electron 33 bundles, which crashed the app at startup right after the database fix. Pinned to the v6 line that matches Electron's runtime.
-- **Resilient auto-updater.** A failed update check (no release yet, offline, or a missing `latest.yml`) is now logged and ignored instead of crashing the app.
+### Chat capture fixes
+- **YouTube chat now connects.** The live-broadcast lookup was sending two mutually exclusive filters (`mine` + `broadcastStatus`), which the YouTube API rejected outright — so chat was never found and capture gave up. Fixed the request, and made capture tolerant of transient API hiccups so it keeps polling instead of permanently quitting.
+- **YouTube permission problems are now visible.** A genuine auth/permission failure (expired login or missing scope) now surfaces a "reconnect your YouTube account" prompt instead of silently sitting on "connecting" forever.
+- **Twitch no longer shows a phantom live capture.** Twitch now reports "connected" only once chat is actually subscribed. Previously it could show a live capture while delivering no events.
+- **Twitch missing-permission prompt.** When a saved Twitch login is missing the chat permission, the dashboard now shows an actionable "reconnect" banner (with the reason) and a re-auth badge, instead of a vague error.
 
-### Reliability
-- **Startup failures are visible.** Any fatal error during startup shows a dialog (with the log path) instead of dying silently.
-- **Builds are verified before release.** CI loads `better-sqlite3`, `keytar`, `undici`, and the other runtime-critical modules under the real Electron runtime, so a wrong-ABI or incompatible dependency fails the build instead of shipping.
-
-### Relay / restream
-- Verify relay TLS by default (pin a self-signed cert via `relay.caCert`, or opt out explicitly with `relay.allowSelfSigned`); all relay requests now time out instead of hanging stream start/stop.
-- Restream now reports a `reconnecting` state end-to-end while a platform connection is down.
+### Settings / UI
+- **OBS instructions show your real stream key.** The "How to connect OBS" steps now display the actual configured incoming stream key instead of a hardcoded placeholder.
+- **Readable disabled controls.** Disabled buttons and "… — Not set" chips no longer render near-black text on a dark surface in the dark theme.
