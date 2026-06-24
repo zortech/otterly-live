@@ -23,6 +23,8 @@ export interface PublicSettings {
 
 export interface SettingsStatus {
   rtmpKeyConfigured: boolean;
+  /** Actual incoming RTMP key — safe to show as it only gates localhost OBS ingestion. */
+  rtmpKey?: string;
   streamtapTokenConfigured: boolean;
   relayTokenConfigured: boolean;
 }

@@ -231,6 +231,10 @@ async function startServer() {
       ]);
       res.json({
         rtmpKeyConfigured:        Boolean(rtmpKey && rtmpKey !== ''),
+        // The RTMP key only gates localhost OBS ingestion (not a real secret), so we
+        // return its value to let the UI show OBS the exact key to use. The streamtap
+        // and relay tokens authenticate remote access, so those stay redacted.
+        rtmpKey:                  rtmpKey ?? '',
         streamtapTokenConfigured: Boolean(streamtapToken && streamtapToken !== ''),
         relayTokenConfigured:     Boolean(relayToken && relayToken !== ''),
       });

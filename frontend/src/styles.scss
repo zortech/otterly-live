@@ -169,6 +169,13 @@ textarea.mdc-text-field__input {
   --mdc-chip-label-text-color: var(--text-2) !important;
   --mdc-chip-outline-color: var(--border) !important;
 }
+/* Material 21 doesn't always apply the label-text-color token to the rendered
+   label element, leaving "… — Not set" chips with a near-black, unreadable label.
+   Force the colour on the label element itself. */
+.mat-mdc-chip:not(.mat-mdc-chip-highlighted) .mdc-evolution-chip__text-label,
+.mat-mdc-chip:not(.mat-mdc-chip-highlighted) .mat-mdc-chip-action-label {
+  color: var(--text-2) !important;
+}
 
 .mat-mdc-chip.mat-mdc-chip-highlighted {
   --mdc-chip-container-color: var(--accent-dim) !important;
@@ -263,6 +270,30 @@ textarea.mdc-text-field__input {
 .mat-mdc-raised-button.mat-primary:not([disabled]) .mdc-button__label,
 .mat-mdc-raised-button[color="primary"]:not([disabled]) .mdc-button__label {
   color: #000 !important;
+}
+
+/* Disabled buttons of every variant (text / outlined / raised / flat) — e.g. the
+   "Save" key button before a value is typed, or "Verify" while verifying. Material's
+   default renders a near-black label on a dark surface in this theme, which is
+   unreadable. Force a muted-but-legible label and a faint outline/fill so the button
+   still reads as disabled without disappearing. */
+.mat-mdc-button[disabled],
+.mat-mdc-outlined-button[disabled],
+.mat-mdc-raised-button[disabled],
+.mat-mdc-unelevated-button[disabled] {
+  color: var(--text-2) !important;
+  --mdc-text-button-disabled-label-text-color: var(--text-2) !important;
+  --mdc-outlined-button-disabled-label-text-color: var(--text-2) !important;
+  --mdc-outlined-button-disabled-outline-color: var(--border-2, var(--border)) !important;
+  --mdc-filled-button-disabled-label-text-color: var(--text-2) !important;
+  --mdc-filled-button-disabled-container-color: var(--bg-hover) !important;
+  opacity: 0.7;
+}
+.mat-mdc-button[disabled] .mdc-button__label,
+.mat-mdc-outlined-button[disabled] .mdc-button__label,
+.mat-mdc-raised-button[disabled] .mdc-button__label,
+.mat-mdc-unelevated-button[disabled] .mdc-button__label {
+  color: var(--text-2) !important;
 }
 
 .mat-mdc-icon-button { color: var(--text-2) !important; }

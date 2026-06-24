@@ -161,7 +161,7 @@ import { SecretKeyFieldComponent } from './secret-key-field.component';
           </div>
           <div class="obs-step">
             <div class="step-num">3</div>
-            <span>Stream Key: <code>ottery</code> (or the Incoming stream key you set below)</span>
+            <span>Stream Key: <code>{{ svc.status()?.rtmpKey || 'ottery' }}</code> (the Incoming stream key set below)</span>
           </div>
           <div class="obs-step">
             <div class="step-num">4</div>
