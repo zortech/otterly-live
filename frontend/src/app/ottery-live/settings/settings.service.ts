@@ -19,6 +19,7 @@ export interface PublicSettings {
   'streamtap.mdns': boolean;
   'relay.mode': 'local' | 'remote';
   'relay.url': string;
+  'relay.allowSelfSigned': boolean;
 }
 
 export interface SettingsStatus {

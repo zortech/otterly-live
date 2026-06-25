@@ -14,6 +14,8 @@ jest.mock('../settings', () => ({ get: jest.fn() }));
 jest.mock('./relay-client', () => ({
   startSession:           jest.fn(),
   endSession:             jest.fn(),
+  addPlatform:            jest.fn(),
+  removePlatform:         jest.fn(),
   connectStatusSocket:    jest.fn(),
   disconnectStatusSocket: jest.fn(),
 }));
@@ -371,6 +373,27 @@ describe('remote mode', () => {
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].reason).toMatch(/relay unreachable/);
     expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('toggle(enabled) in remote mode with NO active relay session refuses and does NOT start a direct push', async () => {
+    // The catastrophic-fallback guard: if the relay passthrough isn't running,
+    // a manual toggle must not silently spawn a direct local FFmpeg — that would
+    // saturate a relay user's uplink and corrupt every destination.
+    stubRemoteMode();
+    const StreamService = require('../models/stream-service');
+    StreamService.getWithCredentials.mockResolvedValue({
+      id: 1, platform: 'twitch', restream_enabled: true,
+      rtmp_url: 'rtmp://x', stream_key: 'k',
+    });
+    manager.processes.delete('__relay__'); // no active relay session
+
+    const errors = [];
+    eventBus.on('relay.error', (d) => errors.push(d));
+
+    await expect(manager.toggle(1, true)).rejects.toThrow(/relay/i);
+    expect(spawn).not.toHaveBeenCalled();
+    expect(relayClient.addPlatform).not.toHaveBeenCalled();
+    expect(errors.length).toBeGreaterThan(0);
   });
 
   it('onStreamEnd in remote mode calls relayClient.endSession and kills relay proc', async () => {

@@ -67,7 +67,9 @@ class RestreamManager {
 
   /**
    * Local mode: spawn a separate FFmpeg process for each active platform.
-   * Extracted from the original onStreamStart so it can also be called as fallback.
+   * Only ever runs when relay.mode !== 'remote'. Remote mode NEVER falls back
+   * here — a direct local push would saturate a relay user's limited uplink and
+   * corrupt every destination. See _startRemoteSession and toggle().
    */
   async _startLocalSession() {
     let rows;
@@ -409,8 +411,19 @@ class RestreamManager {
       if (!svc) throw new Error(`Service ${serviceId} not found`);
       if (!svc.restream_enabled) throw new Error(`Restream not enabled for service ${serviceId}`);
 
-      const useRelay = (await settings.get('relay.mode')) === 'remote' && this.processes.has('__relay__');
-      if (useRelay) {
+      const isRemote = (await settings.get('relay.mode')) === 'remote';
+      if (isRemote) {
+        // Remote mode MUST go through the relay. If the relay session isn't up
+        // (e.g. it failed to start), we must NOT silently start a direct local
+        // push: the user chose the relay because their uplink can't carry the
+        // sum of all platform bitrates. Falling back to local would saturate
+        // the connection and corrupt every destination. Refuse loudly instead.
+        if (!this.processes.has('__relay__')) {
+          eventBus.emit('relay.error', {
+            reason: 'relay session not active — platform NOT started (remote mode does not fall back to a direct local push)',
+          });
+          throw new Error('Relay is not connected. Nothing was started — remote mode will not fall back to a direct push. Fix the relay connection and try again.');
+        }
         await this._addPlatformToRelay(svc);
       } else {
         await this.startPlatform(svc);

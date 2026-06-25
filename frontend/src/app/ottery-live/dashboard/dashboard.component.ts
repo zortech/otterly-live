@@ -271,6 +271,40 @@ import { StreamService } from '../stream-services.service';
     }
     .no-platforms-hint mat-icon { color: var(--accent); font-size: 18px; width: 18px; height: 18px; }
 
+    /* ── Relay failure banner (persistent, unmissable) ─────────── */
+    .relay-failure-banner {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px; border-radius: 12px; margin-bottom: 20px;
+      background: rgba(255,59,48,0.10);
+      border: 1px solid rgba(255,59,48,0.55);
+      box-shadow: 0 0 0 1px rgba(255,59,48,0.15);
+      animation: relay-fail-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes relay-fail-pulse {
+      0%, 100% { border-color: rgba(255,59,48,0.55); }
+      50%      { border-color: rgba(255,59,48,0.95); }
+    }
+    .relay-failure-banner > mat-icon {
+      color: #ff3b30; flex-shrink: 0;
+      font-size: 28px; width: 28px; height: 28px;
+    }
+    .relay-failure-text { flex: 1; }
+    .relay-failure-title {
+      font-weight: 800; font-size: 14px; letter-spacing: 0.4px;
+      color: #ff6b61; margin-bottom: 3px;
+    }
+    .relay-failure-sub { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+    .relay-failure-reason {
+      display: block; margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3);
+    }
+    .relay-failure-dismiss {
+      flex-shrink: 0; background: transparent; border: none; cursor: pointer;
+      color: var(--text-3); padding: 4px; border-radius: 6px; line-height: 0;
+    }
+    .relay-failure-dismiss:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }
+    .relay-failure-dismiss mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
     .relay-badge {
       font-size: 10px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.5px; padding: 1px 5px; margin-left: 6px;
@@ -284,6 +318,25 @@ import { StreamService } from '../stream-services.service';
     <div class="page-header">
       <h1 class="page-title">Dashboard</h1>
     </div>
+
+    <!-- Persistent relay-failure banner: remote mode never falls back to a
+         direct push, so a failed relay means NOTHING is going out. -->
+    @if (relayFailure(); as reason) {
+      <div class="relay-failure-banner" role="alert">
+        <mat-icon>error</mat-icon>
+        <div class="relay-failure-text">
+          <div class="relay-failure-title">RELAY DOWN — YOU ARE NOT LIVE</div>
+          <div class="relay-failure-sub">
+            Nothing is being sent to any platform. Remote mode will not fall back to a
+            direct push (it would overload your upload). Fix the relay and start again.
+            <span class="relay-failure-reason">{{ reason }}</span>
+          </div>
+        </div>
+        <button class="relay-failure-dismiss" (click)="relayFailure.set(null)" aria-label="Dismiss">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
 
     <!-- Session status bar -->
     <div class="status-bar" [class]="service.sessionState() ?? 'idle'">
@@ -603,6 +656,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly platformFilter = signal<string>('all');
   readonly startingAll = signal(false);
   readonly stoppingAll = signal(false);
+  /** Set when the relay errors; drives the persistent failure banner. Cleared on relay reconnect. */
+  readonly relayFailure = signal<string | null>(null);
 
   private sessionStartTime: number | null = null;
   private durationInterval: ReturnType<typeof setInterval> | null = null;
@@ -654,8 +709,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           { duration: Math.max(status.delayMs ?? 5000, 5000), panelClass: 'snackbar-warn' }
         );
       } else if (status?.event === 'connected') {
+        this.relayFailure.set(null);
         this.snackBar.open(`Relay connected`, 'Dismiss', { duration: 3000 });
       } else if (status?.event === 'error') {
+        // Persist the failure as an unmissable banner — a transient toast is not
+        // enough when the consequence is "you think you're live but nothing is
+        // going out." Remote mode never falls back to a direct push, so the user
+        // MUST know the relay is down. Cleared only when the relay reconnects.
+        this.relayFailure.set(status.reason || 'Relay connection failed');
         this.snackBar.open(
           `Relay failure — restream STOPPED` +
             (status.reason ? ': ' + status.reason : ''),

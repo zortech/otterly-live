@@ -445,6 +445,22 @@ import { SecretKeyFieldComponent } from './secret-key-field.component';
               [configured]="svc.status()?.relayTokenConfigured ?? false"
               (saved)="onSecretSaved()" />
 
+            <div class="toggle-row" style="margin-top:16px">
+              <div class="toggle-control">
+                <div>
+                  <div class="toggle-label"
+                    matTooltip="Skip TLS certificate verification when connecting to the relay. Enable this if your relay uses a self-signed certificate (e.g. accessed by raw IP). This disables protection against man-in-the-middle attacks, so only use it for a relay you control."
+                    matTooltipPosition="right" matTooltipShowDelay="400">
+                    Skip certificate check
+                  </div>
+                  <div class="toggle-desc">Allow self-signed relay certificates (disables TLS verification)</div>
+                </div>
+                <mat-slide-toggle
+                  [checked]="svc.settings()?.['relay.allowSelfSigned'] ?? false"
+                  (change)="save('relay.allowSelfSigned', $event.checked)" />
+              </div>
+            </div>
+
             <div class="verify-row">
               <button mat-stroked-button [disabled]="verifyingRelay()"
                       (click)="verifyRelay()">
