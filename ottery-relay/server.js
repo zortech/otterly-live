@@ -72,6 +72,19 @@ function maybeGenerateCerts() {
     fs.mkdirSync(path.dirname(path.resolve(keyPath)),  { recursive: true });
     fs.mkdirSync(path.dirname(path.resolve(certPath)), { recursive: true });
 
+    // Embed a Subject Alternative Name for the host the desktop app connects to.
+    // Without a SAN, modern TLS clients reject the cert when verifying — pinning
+    // it via relay.caCert would still fail an IP/hostname check. RELAY_PUBLIC_HOST
+    // should be the IP or hostname in the app's relay URL (e.g. 203.0.113.5).
+    const publicHost = (process.env.RELAY_PUBLIC_HOST ?? '').trim();
+    const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(publicHost) || publicHost.includes(':');
+    const sanArgs = publicHost
+      ? ['-addext', `subjectAltName=${isIp ? 'IP' : 'DNS'}:${publicHost}`]
+      : [];
+    if (!publicHost) {
+      logger.warn('[certs] RELAY_PUBLIC_HOST not set — cert has no SAN; clients must use relay.allowSelfSigned (skip cert check) to connect');
+    }
+
     // spawnSync with an args array — no shell, no injection risk.
     // openssl is available on Alpine (apk add openssl), Debian, and macOS.
     const { spawnSync } = require('child_process');
@@ -83,6 +96,7 @@ function maybeGenerateCerts() {
       '-days',   '3650',
       '-nodes',
       '-subj',   '/CN=ottery-relay',
+      ...sanArgs,
     ], { stdio: 'pipe' });
 
     if (result.status !== 0) {

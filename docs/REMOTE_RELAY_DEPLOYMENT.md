@@ -170,16 +170,31 @@ In Ottery Live settings (Settings → Restream Mode → Remote):
 | Relay URL    | `https://150.136.241.163:3800`       |
 | API Token    | from `cli.js add-user` / `rotate-token` |
 
-The client (`server/restream/relay-client.js`) accepts the relay's self-signed
-cert via `rejectUnauthorized: false`. If you ever swap to a real cert (e.g.
-Let's Encrypt via a domain + Caddy), no code change is required.
+The client (`server/restream/relay-client.js`) connects to the relay's
+self-signed cert in one of two ways:
+- **Skip cert check** — enable "Skip certificate check" in the desktop app
+  (Settings → Restream Mode), which sets `relay.allowSelfSigned` and disables
+  TLS verification. Simplest; MITM-unsafe, so only for a relay you control.
+- **Pin the cert** — paste `data/certs/cert.pem` into `relay.caCert`. Strict
+  verification still happens, against this cert. Requires the cert to carry a
+  SAN matching the host in the relay URL (see below).
 
 ## TLS Cert
 
 Self-signed cert at `data/certs/cert.pem`, `key.pem`. Generated on first boot
 by `server.js` if `RELAY_RTMPS_KEY_PATH` and `RELAY_RTMPS_CERT_PATH` are set
-in `.env`. Valid for 10 years (notAfter 2036-04-14). Subject `CN=ottery-relay`,
-no SAN — fine for IP-based access by the desktop client.
+in `.env`. Valid for 10 years. Subject `CN=ottery-relay`.
+
+**Subject Alternative Name (SAN):** set `RELAY_PUBLIC_HOST` in `.env` to the IP
+or hostname the desktop app connects to (e.g. `150.136.241.163`). Cert
+generation embeds it as a SAN, which is **required** for strict TLS — without a
+SAN, modern clients reject the cert even when it is pinned via `relay.caCert`,
+so the only way to connect would be the skip-cert-check escape hatch.
+
+To regenerate the cert (e.g. after changing `RELAY_PUBLIC_HOST`): delete
+`data/certs/cert.pem` and `key.pem`, then `sudo systemctl restart ottery-relay`
+(server.js regenerates on boot). The current relay cert was regenerated with
+`subjectAltName=IP:150.136.241.163`.
 
 To swap for a Let's Encrypt cert later:
 1. Put a domain in front of the VM (A record → `150.136.241.163`).
