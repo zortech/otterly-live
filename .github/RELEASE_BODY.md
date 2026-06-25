@@ -1,11 +1,9 @@
-## What's new in v0.1.7
+## What's new in v0.1.8
 
-### Chat capture fixes
-- **YouTube chat now connects.** The live-broadcast lookup was sending two mutually exclusive filters (`mine` + `broadcastStatus`), which the YouTube API rejected outright — so chat was never found and capture gave up. Fixed the request, and made capture tolerant of transient API hiccups so it keeps polling instead of permanently quitting.
-- **YouTube permission problems are now visible.** A genuine auth/permission failure (expired login or missing scope) now surfaces a "reconnect your YouTube account" prompt instead of silently sitting on "connecting" forever.
-- **Twitch no longer shows a phantom live capture.** Twitch now reports "connected" only once chat is actually subscribed. Previously it could show a live capture while delivering no events.
-- **Twitch missing-permission prompt.** When a saved Twitch login is missing the chat permission, the dashboard now shows an actionable "reconnect" banner (with the reason) and a re-auth badge, instead of a vague error.
+### Remote relay reliability (important if you stream through a relay)
+- **No more silent fallback to a direct push.** If the relay is unreachable, Ottery Live will no longer quietly start pushing every platform directly from your machine. That fallback could saturate a limited uplink (the whole reason you use a relay) and corrupt every destination at once. Auto-start, manual per-platform toggles, and "Start All" now all route through the relay — and refuse to start if the relay session isn't up.
+- **You can't miss a relay failure anymore.** When the relay is down, the dashboard shows a persistent "RELAY DOWN — YOU ARE NOT LIVE" banner instead of a toast that disappears after a few seconds. No more believing you're live when nothing is going out.
+- **Skip certificate check option.** New toggle in Settings → Restream Mode lets you connect to a relay that uses a self-signed certificate (e.g. accessed by raw IP). Use it only for a relay you control.
 
-### Settings / UI
-- **OBS instructions show your real stream key.** The "How to connect OBS" steps now display the actual configured incoming stream key instead of a hardcoded placeholder.
-- **Readable disabled controls.** Disabled buttons and "… — Not set" chips no longer render near-black text on a dark surface in the dark theme.
+### Relay server (self-hosted)
+- **Self-signed certs can now carry a SAN.** Set `RELAY_PUBLIC_HOST` to the IP or hostname clients connect to, and the generated cert embeds a matching Subject Alternative Name — required for strict TLS verification when pinning the cert. See `docs/REMOTE_RELAY_DEPLOYMENT.md`.
