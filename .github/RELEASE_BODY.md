@@ -1,9 +1,9 @@
-## What's new in v0.1.8
+## What's new in v0.1.9
 
-### Remote relay reliability (important if you stream through a relay)
-- **No more silent fallback to a direct push.** If the relay is unreachable, Ottery Live will no longer quietly start pushing every platform directly from your machine. That fallback could saturate a limited uplink (the whole reason you use a relay) and corrupt every destination at once. Auto-start, manual per-platform toggles, and "Start All" now all route through the relay — and refuse to start if the relay session isn't up.
-- **You can't miss a relay failure anymore.** When the relay is down, the dashboard shows a persistent "RELAY DOWN — YOU ARE NOT LIVE" banner instead of a toast that disappears after a few seconds. No more believing you're live when nothing is going out.
-- **Skip certificate check option.** New toggle in Settings → Restream Mode lets you connect to a relay that uses a self-signed certificate (e.g. accessed by raw IP). Use it only for a relay you control.
+### Event capture reliability
+- **No more YouTube reconnect storms.** When YouTube's gRPC chat endpoint reported a method as unavailable, the app would reconnect in a tight loop — flooding logs, stalling event processing long enough to drop the relay connection, and burning the daily YouTube API quota. It now detects this case, falls back to REST chat polling, and re-checks gRPC periodically so it recovers on its own without restarting the app.
+- **TikTok config problems surface instead of failing silently.** A failure to resolve your TikTok room from any source (for example, an invalid or expired signing key) is now reported as an error you can see and act on, rather than being misread as "streamer offline" and retried forever in the background. Genuinely-offline streamers still wait patiently for you to go live.
+- **TikTok waits for your stream to come up.** Event capture now gives the stream a few seconds to propagate after you go live before its first connection attempt, so it isn't misread as "not live yet".
 
-### Relay server (self-hosted)
-- **Self-signed certs can now carry a SAN.** Set `RELAY_PUBLIC_HOST` to the IP or hostname clients connect to, and the generated cert embeds a matching Subject Alternative Name — required for strict TLS verification when pinning the cert. See `docs/REMOTE_RELAY_DEPLOYMENT.md`.
+### Dashboard
+- **Stream status and chat/alert status are now separate.** Previously a problem with event capture (chat, alerts) could make a platform look like the stream itself had stopped. Each platform card now shows the restream as its main status with a separate "Events" indicator, and error messages tell you which one failed — so a chat hiccup never makes you think you've dropped off the air.
