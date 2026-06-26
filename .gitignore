@@ -8,3 +8,6 @@ frontend/.angular/
 *.db-shm
 *.db-wal
 .angular/
+
+# Runtime debug logs exported from the app
+*.log
