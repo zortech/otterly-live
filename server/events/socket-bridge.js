@@ -10,7 +10,7 @@ function attachSocketBridge(io, eventBus, getSessionState, getRestreamStatus, ge
 
     const restreamStatuses = getRestreamStatus();
     for (const status of Object.values(restreamStatuses)) {
-      socket.emit('ottery:status', status);
+      socket.emit('ottery:status', { ...status, type: 'restream' });
     }
 
     if (getCaptureStatus) {
@@ -30,10 +30,12 @@ function attachSocketBridge(io, eventBus, getSessionState, getRestreamStatus, ge
   });
 
   eventBus.on('event',             (e) => io.emit('ottery:event', e));
-  eventBus.on('restream.started',      (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.stopped',      (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.error',        (d) => io.emit('ottery:status', d));
-  eventBus.on('restream.reconnecting', (d) => io.emit('ottery:status', d));
+  // Restream (FFmpeg fan-out) status. Tagged type:'restream' so the UI can track it
+  // separately from capture status — the two must never overwrite each other.
+  eventBus.on('restream.started',      (d) => io.emit('ottery:status', { ...d, type: 'restream' }));
+  eventBus.on('restream.stopped',      (d) => io.emit('ottery:status', { ...d, type: 'restream' }));
+  eventBus.on('restream.error',        (d) => io.emit('ottery:status', { ...d, type: 'restream' }));
+  eventBus.on('restream.reconnecting', (d) => io.emit('ottery:status', { ...d, type: 'restream' }));
   eventBus.on('restream.progress', (d) => io.emit('ottery:progress', d));
   eventBus.on('restream.warning',  (d) => io.emit('ottery:warning',  d));
   eventBus.on('session.started',  (d) => io.emit('ottery:session', { state: 'live',  sessionId: d?.sessionId ?? null }));

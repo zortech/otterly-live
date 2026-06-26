@@ -107,19 +107,33 @@ describe('DashboardComponent computed signals', () => {
       expect(component.platformCards().length).toBe(0);
     });
 
-    it('marks isLive when platform status is live', () => {
+    it('marks isLive when restream status is live', () => {
       streamSvc.services.set([makeStreamService({ id: 1 })]);
-      otteryService.platformStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'live' } });
+      otteryService.restreamStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'live' } });
       const cards = component.platformCards();
       expect(cards[0].isLive).toBe(true);
       expect(cards[0].isError).toBe(false);
     });
 
-    it('marks isError when platform status is error', () => {
+    it('marks isError when restream status is error', () => {
       streamSvc.services.set([makeStreamService({ id: 1 })]);
-      otteryService.platformStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'error', reason: 'max_restarts' } });
+      otteryService.restreamStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'error', reason: 'max_restarts' } });
       const cards = component.platformCards();
       expect(cards[0].isError).toBe(true);
+    });
+
+    it('keeps restream live when capture errors (subsystems are independent)', () => {
+      streamSvc.services.set([makeStreamService({ id: 1, restream_enabled: true, event_capture_enabled: true })]);
+      otteryService.restreamStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'live' } });
+      otteryService.captureStatuses.set({ 1: { serviceId: 1, platform: 'twitch', status: 'error', reason: 'max_failures', type: 'capture' } });
+      const cards = component.platformCards();
+      // Primary line still reports the stream as live …
+      expect(cards[0].isLive).toBe(true);
+      expect(cards[0].isError).toBe(false);
+      // … while a separate capture chip surfaces the capture failure.
+      expect(cards[0].showCaptureChip).toBe(true);
+      expect(cards[0].captureState).toBe('error');
+      expect(cards[0].captureStatusLabel).toBe('Events: failed');
     });
   });
 

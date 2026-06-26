@@ -84,7 +84,11 @@ export class OtteryLiveService {
   readonly sessionState = signal<'idle' | 'live' | 'ended'>('idle');
   readonly activeSessionId = signal<number | null>(null);
   readonly sessionStartedAt = signal<number | null>(null);
-  readonly platformStatuses = signal<Record<number, PlatformStatus>>({});
+  // Restream (FFmpeg fan-out) status per serviceId — "is my video reaching the platform".
+  readonly restreamStatuses = signal<Record<number, PlatformStatus>>({});
+  // Event-capture (chat/alerts listener) status per serviceId — tracked separately so a
+  // capture failure never masks a healthy restream, and vice versa. See socket handler below.
+  readonly captureStatuses = signal<Record<number, PlatformStatus>>({});
   readonly events = signal<OtteryEvent[]>([]);
   readonly connected = signal(false);
   readonly authRequired = signal<Record<number, AuthRequired>>({});
@@ -116,8 +120,13 @@ export class OtteryLiveService {
 
     this.socket.on(
       'ottery:status',
-      (d: PlatformStatus) =>
-        this.platformStatuses.update((s) => ({ ...s, [d.serviceId]: d }))
+      (d: PlatformStatus) => {
+        // capture.* events carry type:'capture'; restream.* carry type:'restream'
+        // (older servers send restream untyped). Route each to its own map so the
+        // two subsystems can't clobber one another's status for the same service.
+        const target = d.type === 'capture' ? this.captureStatuses : this.restreamStatuses;
+        target.update((s) => ({ ...s, [d.serviceId]: d }));
+      }
     );
 
     this.socket.on(
@@ -132,7 +141,8 @@ export class OtteryLiveService {
         }
         if (d.state === 'idle') {
           this.events.set([]);
-          this.platformStatuses.set({});
+          this.restreamStatuses.set({});
+          this.captureStatuses.set({});
           this.sessionStats.set({ follows: 0, subs: 0, giftSubs: 0, cheers: 0, tips: 0, peakViewers: 0, raids: 0, chatMessages: 0 });
           this.liveViewers.set({});
           this.platformProgress.set({});
@@ -178,8 +188,9 @@ export class OtteryLiveService {
     });
   }
 
+  // Snapshot from GET /api/stream/status is restream status only.
   hydrateStatuses(data: Record<number, PlatformStatus>): void {
-    this.platformStatuses.update((s) => ({ ...s, ...data }));
+    this.restreamStatuses.update((s) => ({ ...s, ...data }));
   }
 
   clearAuthRequired(serviceId: number): void {

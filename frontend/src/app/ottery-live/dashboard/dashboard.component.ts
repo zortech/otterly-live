@@ -126,6 +126,10 @@ import { StreamService } from '../stream-services.service';
     .pc-status.live       { color: var(--live); }
     .pc-status.error      { color: var(--error-color); }
     .pc-status.connecting { color: var(--warn-color); }
+    .pc-capture { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+    .pc-capture.live       { color: var(--text-2); }
+    .pc-capture.error      { color: var(--error-color); }
+    .pc-capture.connecting { color: var(--warn-color); }
 
     .pc-metrics {
       display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
@@ -419,6 +423,10 @@ import { StreamService } from '../stream-services.service';
                     }
                   </div>
                   <div class="pc-status" [class]="card.status?.status ?? ''">{{ card.statusLabel }}</div>
+                  @if (card.showCaptureChip) {
+                    <div class="pc-capture" [class]="card.captureState"
+                      title="Event capture (chat, alerts) — independent of the restream above">{{ card.captureStatusLabel }}</div>
+                  }
                   @if (card.isLive && (card.uptimeLabel || card.showDrops || card.warningCount > 0)) {
                     <div class="pc-metrics">
                       @if (card.uptimeLabel) {
@@ -661,7 +669,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private sessionStartTime: number | null = null;
   private durationInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly _prevStatuses = new Map<number, string>();
+  // Keyed by `${kind}:${serviceId}` so restream and capture errors are de-duped
+  // independently (an error toast for one subsystem shouldn't suppress the other's).
+  private readonly _prevStatuses = new Map<string, string>();
 
   // Wall-clock signal that ticks every second while a session is live. Read
   // inside computeds that depend on elapsed time (platform uptime), so they
@@ -727,32 +737,36 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     effect(() => {
-      const statuses = this.service.platformStatuses();
+      const restream = this.service.restreamStatuses();
+      const capture = this.service.captureStatuses();
       const services = this.streamSvc.services();
-      for (const [idStr, status] of Object.entries(statuses)) {
-        const serviceId = Number(idStr);
-        const prev = this._prevStatuses.get(serviceId);
-        const isNewError =
-          status.status === 'error' &&
-          (status.reason === 'max_restarts' || status.reason === 'max_failures') &&
-          prev !== 'error';
-        if (isNewError) {
-          const svc = services.find((s) => s.id === serviceId);
-          const label = svc?.display_name ?? `Service ${serviceId}`;
-          this.snackBar.open(
-            `${label}: max retries exceeded — check stream key and platform status`,
-            'Dismiss',
-            { duration: 10000 }
-          );
+
+      // Raise a toast on a *new* terminal error, separately per subsystem, so the
+      // message tells the user exactly what failed — and so a capture failure (chat
+      // /alerts down) is never reported as if the stream itself had stopped.
+      const checkError = (status: PlatformStatus, kind: 'restream' | 'capture', failReason: string) => {
+        const key = `${kind}:${status.serviceId}`;
+        const prev = this._prevStatuses.get(key);
+        if (status.status === 'error' && status.reason === failReason && prev !== 'error') {
+          const svc = services.find((s) => s.id === status.serviceId);
+          const label = svc?.display_name ?? `Service ${status.serviceId}`;
+          const msg = kind === 'restream'
+            ? `${label}: restream stopped — max retries exceeded; check stream key and platform status`
+            : `${label}: event capture failed — max retries exceeded; chat/alerts won't update (your stream is unaffected)`;
+          this.snackBar.open(msg, 'Dismiss', { duration: 10000 });
         }
-        this._prevStatuses.set(serviceId, status.status);
-      }
+        this._prevStatuses.set(key, status.status);
+      };
+
+      for (const status of Object.values(restream)) checkError(status, 'restream', 'max_restarts');
+      for (const status of Object.values(capture)) checkError(status, 'capture', 'max_failures');
     });
   }
 
   readonly platformCards = computed(() => {
     const services = this.streamSvc.services();
-    const statuses = this.service.platformStatuses();
+    const restreamStatuses = this.service.restreamStatuses();
+    const captureStatuses = this.service.captureStatuses();
     const progress = this.service.platformProgress();
     const progressPrev = this.service.platformProgressPrev();
     const warnings = this.service.platformWarnings();
@@ -762,8 +776,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return services
       .filter((s) => s.active && (s.restream_enabled || s.event_capture_enabled))
       .map((s) => {
-        const st = statuses[s.id] ?? null;
         const captureOnly = !s.restream_enabled && s.event_capture_enabled;
+        const cst = captureStatuses[s.id] ?? null;
+        // Primary status line = the restream (the stream itself), unless this is a
+        // capture-only platform, in which case capture *is* the primary thing.
+        const st = (captureOnly ? cst : restreamStatuses[s.id]) ?? null;
         const isLive = st?.status === 'live';
         const startedAt = st?.startedAt ?? null;
         const uptimeLabel = isLive && startedAt
@@ -787,6 +804,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           isError: st?.status === 'error',
           isRelayMode: isRelay && s.restream_enabled,
           statusLabel: this._statusLabel(st, session, captureOnly),
+          // Secondary capture indicator, shown only when this card's primary line is
+          // the restream but capture also runs (i.e. a platform doing both). This is
+          // what lets the user tell a capture problem apart from a restream problem.
+          showCaptureChip: s.event_capture_enabled && !captureOnly,
+          captureState: cst?.status ?? 'stopped',
+          captureStatusLabel: this._captureStatusLabel(cst),
           uptimeLabel,
           dropped,
           dropRate,
@@ -958,8 +981,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       }
       this.service.clearAuthRequired(serviceId);
 
-      const captureStatus = this.service.platformStatuses()[serviceId];
-      if (captureStatus?.status === 'error' && captureStatus?.type === 'capture') {
+      const captureStatus = this.service.captureStatuses()[serviceId];
+      if (captureStatus?.status === 'error') {
         this.http.post(`/api/event-capture/${serviceId}/start`, {}).subscribe({
           error: (err) => console.warn('Failed to restart event capture after reconnect', err),
         });
@@ -1087,6 +1110,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       case 'connecting':  return 'Connecting...';
       case 'error':       return status.reason === 'max_restarts' ? 'Failed (max retries)' : 'Error';
       default:            return 'Unknown';
+    }
+  }
+
+  // Label for the secondary event-capture chip on a restreaming platform card.
+  private _captureStatusLabel(status: PlatformStatus | null): string {
+    switch (status?.status) {
+      case 'live':       return 'Events: active';
+      case 'connecting': return 'Events: connecting…';
+      case 'error':      return status.reason === 'max_failures' ? 'Events: failed' : 'Events: error';
+      case 'stopped':    return 'Events: stopped';
+      default:           return 'Events: off';
     }
   }
 

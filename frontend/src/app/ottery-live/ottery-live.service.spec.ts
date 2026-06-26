@@ -79,12 +79,17 @@ describe('OtteryLiveService', () => {
     expect(service.events()[0].id).toBe('new-1');
   });
 
-  it('merges platform statuses on ottery:status', () => {
-    mockSocket.emit('ottery:status', { serviceId: 1, platform: 'twitch', status: 'live' });
+  it('routes restream vs capture statuses to separate maps on ottery:status', () => {
+    mockSocket.emit('ottery:status', { serviceId: 1, platform: 'twitch', status: 'live', type: 'restream' });
     mockSocket.emit('ottery:status', { serviceId: 2, platform: 'kick', status: 'stopped' });
+    mockSocket.emit('ottery:status', { serviceId: 1, platform: 'twitch', status: 'error', type: 'capture' });
 
-    expect(service.platformStatuses()[1]).toMatchObject({ serviceId: 1, status: 'live' });
-    expect(service.platformStatuses()[2]).toMatchObject({ serviceId: 2, status: 'stopped' });
+    // Restream map holds restream (and untyped) statuses
+    expect(service.restreamStatuses()[1]).toMatchObject({ serviceId: 1, status: 'live' });
+    expect(service.restreamStatuses()[2]).toMatchObject({ serviceId: 2, status: 'stopped' });
+    // Capture status for the same service is tracked independently — does not clobber restream
+    expect(service.captureStatuses()[1]).toMatchObject({ serviceId: 1, status: 'error' });
+    expect(service.restreamStatuses()[1].status).toBe('live');
   });
 
   it('sets sessionState on ottery:session', () => {
@@ -100,7 +105,8 @@ describe('OtteryLiveService', () => {
     mockSocket.emit('ottery:session', { state: 'idle' });
 
     expect(service.events()).toEqual([]);
-    expect(service.platformStatuses()).toEqual({});
+    expect(service.restreamStatuses()).toEqual({});
+    expect(service.captureStatuses()).toEqual({});
   });
 
   it('adds auth.required entry on ottery:auth', () => {
@@ -112,13 +118,13 @@ describe('OtteryLiveService', () => {
   // hydrateStatuses
   // -------------------------------------------------------------------------
 
-  it('hydrateStatuses merges without replacing existing entries', () => {
+  it('hydrateStatuses merges restream statuses without replacing existing entries', () => {
     mockSocket.emit('ottery:status', { serviceId: 1, platform: 'twitch', status: 'live' });
 
     service.hydrateStatuses({ 2: { serviceId: 2, platform: 'kick', status: 'stopped' } });
 
-    expect(service.platformStatuses()[1]).toBeDefined();
-    expect(service.platformStatuses()[2]).toBeDefined();
+    expect(service.restreamStatuses()[1]).toBeDefined();
+    expect(service.restreamStatuses()[2]).toBeDefined();
   });
 
   // -------------------------------------------------------------------------
