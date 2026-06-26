@@ -19,6 +19,45 @@ const BROADCAST_POLL_INTERVAL_MS = 30 * 1000;
 // Fallback REST poll default interval — overridden by pollingIntervalMillis from API
 const REST_POLL_DEFAULT_MS = 5000;
 
+// Minimum gap between liveChatMessages.list calls. Each call costs 5 quota units and
+// the default daily quota is 10,000 units (2,000 calls). The API often asks us to poll
+// every 1–5s; honouring that drains the quota in well under 3 hours. Flooring at 8s caps
+// usage at ~2,000 calls / ~4.4h while still buffering ~1,000 units for broadcast-find and
+// probe calls. Messages are not lost — slower polls just return larger batches via
+// pageToken (up to maxResults=200), so the only cost is up to ~8s of added chat latency.
+const REST_POLL_MIN_MS = 8000;
+
+// How long to suppress gRPC for a channel after StreamList returns UNIMPLEMENTED.
+// Long enough to break the reconnect loop and stop probing for a meaningful window;
+// short enough that the channel re-probes gRPC on its own if YouTube rolls the
+// endpoint back, without needing an app restart.
+const GRPC_UNAVAILABLE_COOLDOWN_MS = 30 * 60 * 1000;
+
+// gRPC suppression, tracked per service id as an expiry timestamp. The capture
+// manager spawns a *fresh* worker instance on every reconnect, so an instance field
+// would forget what the previous attempt learned and we'd reopen gRPC into the same
+// wall each cycle (probing once per cycle — this is what drained the Data API quota
+// and, by flooding logs, stalled the event loop long enough to drop the relay socket).
+// A module-level map persists the "StreamList is UNIMPLEMENTED until T" verdict across
+// those reconnects, so we fall back to REST. After the cooldown a single gRPC attempt
+// is allowed; if it's still UNIMPLEMENTED the 'status' event re-suppresses immediately,
+// so the worst case is one failed gRPC attempt per cooldown — never a loop.
+const grpcUnavailableUntil = new Map();
+
+function suppressGrpc(serviceId) {
+  grpcUnavailableUntil.set(serviceId, Date.now() + GRPC_UNAVAILABLE_COOLDOWN_MS);
+}
+
+function isGrpcSuppressed(serviceId) {
+  const until = grpcUnavailableUntil.get(serviceId);
+  if (until === undefined) return false;
+  if (Date.now() >= until) {
+    grpcUnavailableUntil.delete(serviceId); // cooldown elapsed — allow a re-probe
+    return false;
+  }
+  return true;
+}
+
 class YouTubeCapture extends BaseCapture {
   constructor(svc, manager) {
     super(svc, manager);
@@ -29,6 +68,12 @@ class YouTubeCapture extends BaseCapture {
     this._restPollTimer = null;
     this._intentionalDisconnect = false;
     this._usingGrpcFallback = false;
+    // Guards against a single gRPC call signalling a reconnect more than once.
+    // gRPC fires both 'end' and 'error' for the same failure; without this flag
+    // each failure emitted two 'disconnected' events, and because reconnect spawns
+    // a fresh worker without tearing down the old one, the reconnects doubled every
+    // cycle into a storm that burned the entire Data API quota.
+    this._grpcDisconnectHandled = false;
     this._packageDef = null;
     this._pageToken = null; // for REST fallback pagination
   }
@@ -187,6 +232,17 @@ class YouTubeCapture extends BaseCapture {
   async _connectGrpc() {
     if (this._intentionalDisconnect) return;
 
+    // If a recent attempt found StreamList unavailable for this channel (cooldown not
+    // yet elapsed), skip gRPC entirely and go straight to REST. This is what actually
+    // breaks the reconnect loop: even when a clean 'end' wins the race over 'error'
+    // (so the UNIMPLEMENTED handler never runs that cycle), the next reconnect lands
+    // here and stops reopening gRPC until the cooldown lets it re-probe.
+    if (isGrpcSuppressed(this.svc.id)) {
+      logger.info(`[youtube-capture:${this.svc.id}] StreamList recently unavailable — using REST polling`);
+      this._startRestFallback();
+      return;
+    }
+
     try {
       // Load proto once and cache
       if (!this._packageDef) {
@@ -215,9 +271,11 @@ class YouTubeCapture extends BaseCapture {
         meta
       );
 
-      this._grpcCall.on('data', (msg) => this._onGrpcData(msg));
-      this._grpcCall.on('end',  ()    => this._onGrpcEnd());
-      this._grpcCall.on('error',(err) => this._onGrpcError(err));
+      this._grpcDisconnectHandled = false;
+      this._grpcCall.on('data',  (msg)    => this._onGrpcData(msg));
+      this._grpcCall.on('status',(status) => this._onGrpcStatus(status));
+      this._grpcCall.on('end',   ()       => this._onGrpcEnd());
+      this._grpcCall.on('error', (err)    => this._onGrpcError(err));
 
       // Emit connected immediately — we don't wait for the first message
       this._connected = true;
@@ -253,18 +311,62 @@ class YouTubeCapture extends BaseCapture {
     }
   }
 
+  /**
+   * gRPC emits 'status' once at the end of every call with the final code — always,
+   * and (in grpc-js) before the 'end'/'error' events. UNIMPLEMENTED means the
+   * StreamList method isn't available for this channel: a permanent condition, not
+   * a transient drop. Recording the verdict here, rather than only in _onGrpcError,
+   * closes the race where a clean 'end' wins over 'error': by the time _onGrpcEnd
+   * runs the flag is already set, so it routes to REST instead of reconnecting into
+   * the same wall forever (one Data API quota unit per probe).
+   */
+  _onGrpcStatus(status) {
+    if (status?.code === grpc.status.UNIMPLEMENTED && !isGrpcSuppressed(this.svc.id)) {
+      suppressGrpc(this.svc.id);
+      logger.warn(`[youtube-capture:${this.svc.id}] gRPC StreamList UNIMPLEMENTED — falling back to REST polling for this channel`);
+    }
+  }
+
   _onGrpcEnd() {
-    if (this._intentionalDisconnect) return;
+    if (this._intentionalDisconnect || this._grpcDisconnectHandled) return;
+    this._grpcDisconnectHandled = true;
     this._connected = false;
+
+    // StreamList unavailable (flagged by _onGrpcStatus, which fires before this) —
+    // don't probe-and-reconnect into the same wall; switch to REST.
+    if (isGrpcSuppressed(this.svc.id)) {
+      logger.info(`[youtube-capture:${this.svc.id}] gRPC ended and StreamList is unavailable — switching to REST polling`);
+      this._closeGrpc();
+      this._startRestFallback();
+      return;
+    }
+
     logger.info(`[youtube-capture:${this.svc.id}] gRPC stream ended — probing broadcast status`);
     this._probeAndDecideReconnect();
   }
 
   _onGrpcError(err) {
-    if (this._intentionalDisconnect) return;
+    if (this._intentionalDisconnect || this._grpcDisconnectHandled) return;
+    this._grpcDisconnectHandled = true;
     this._connected = false;
-    // gRPC disconnect error codes are ambiguous (known YouTube API issue) — always probe
     logger.warn(`[youtube-capture:${this.svc.id}] gRPC error (code=${err?.code}): ${err.message}`);
+
+    // UNIMPLEMENTED means the StreamList method isn't available to these credentials —
+    // a permanent condition, not a transient drop. Reconnecting just hits the same wall
+    // in a tight loop, and every probe spends a Data API quota unit (this is what drained
+    // the daily quota). Switch to REST polling for the rest of this broadcast instead.
+    // (suppression may already be set by _onGrpcStatus; set it here too in case
+    // 'error' is the only signal we get.)
+    if (err?.code === grpc.status.UNIMPLEMENTED || isGrpcSuppressed(this.svc.id)) {
+      suppressGrpc(this.svc.id);
+      logger.info(`[youtube-capture:${this.svc.id}] gRPC StreamList unavailable — switching to REST polling`);
+      this._closeGrpc();
+      this._startRestFallback();
+      return;
+    }
+
+    // Other gRPC disconnect codes are ambiguous (known YouTube API issue) — probe whether
+    // the broadcast is still live to decide between reconnect and stream-ended.
     this._probeAndDecideReconnect();
   }
 
@@ -363,7 +465,8 @@ class YouTubeCapture extends BaseCapture {
 
       const data = await res.json();
       this._pageToken = data.nextPageToken ?? null;
-      const nextPollMs = data.pollingIntervalMillis ?? REST_POLL_DEFAULT_MS;
+      // Floor the API-suggested interval so chat polling can't outrun the daily quota.
+      const nextPollMs = Math.max(data.pollingIntervalMillis ?? REST_POLL_DEFAULT_MS, REST_POLL_MIN_MS);
 
       for (const item of (data.items ?? [])) {
         const normalized = this._normalizeEvent(item.snippet, item.authorDetails);

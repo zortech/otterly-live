@@ -100,11 +100,26 @@ class EventCaptureManager {
     eventBus.emit('capture.connecting', { serviceId, platform: svc.platform, status: 'connecting' });
     logger.info(`[capture-manager] starting capture for ${svc.platform} (serviceId=${serviceId})`);
 
-    try {
-      await entry.worker.connect();
-    } catch (err) {
-      // Sync connect errors are treated as error events
-      entry.worker.emit('error', err);
+    const connect = async () => {
+      // The worker may have been stopped during the initial-connect delay.
+      if (entry.stopping || !this.workers.has(serviceId)) return;
+      try {
+        await entry.worker.connect();
+      } catch (err) {
+        // Sync connect errors are treated as error events
+        entry.worker.emit('error', err);
+      }
+    };
+
+    // Delay only the *first* attempt, for platforms whose events require the broadcast
+    // to be live (the stream needs a few seconds to propagate after the user goes live).
+    // Reconnects run through _reconnect() and are never delayed here.
+    const delayMs = WorkerClass.initialConnectDelayMs ?? 0;
+    if (delayMs > 0) {
+      logger.info(`[capture-manager] delaying first ${svc.platform} connect by ${delayMs}ms for stream propagation`);
+      entry.retryTimer = setTimeout(connect, delayMs);
+    } else {
+      await connect();
     }
   }
 

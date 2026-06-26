@@ -13,6 +13,15 @@ const EventEmitter = require('events');
  */
 class BaseCapture extends EventEmitter {
   /**
+   * Delay before the *first* connection attempt when capture starts, in ms.
+   * Platforms whose chat/events only exist once the broadcast is actually live
+   * (e.g. TikTok needs a live room) override this so we don't fail the first
+   * attempt while the stream is still propagating relay → platform → live.
+   * Only applied on initial start by the manager — reconnects are not delayed.
+   */
+  static initialConnectDelayMs = 0;
+
+  /**
    * @param {object} streamService  Full credentials object from StreamService.getWithCredentials()
    * @param {object} manager        EventCaptureManager reference (for buildEvent)
    */

@@ -7,6 +7,12 @@ const logger = require('../lib/logger');
 const giftCache = require('./tiktok-gift-cache');
 
 class TikTokCapture extends BaseCapture {
+  // TikTok capture needs a live room to connect. When the user starts streaming, the
+  // video takes a few seconds to propagate (relay → TikTok ingest → live), so an
+  // immediate connect attempt hits "not live"/MissingRoomIdError. Wait ~5s on the
+  // first attempt so the room is up before we try. Reconnects are not delayed.
+  static initialConnectDelayMs = 5000;
+
   constructor(svc, manager) {
     super(svc, manager);
     this._connection = null;
@@ -27,9 +33,12 @@ class TikTokCapture extends BaseCapture {
       return;
     }
 
-    const username = this.svc.username.startsWith('@')
-      ? this.svc.username
-      : `@${this.svc.username}`;
+    // TikTok handles are always lowercase; the webcast API does a case-sensitive
+    // exact-match lookup on the uniqueId, so a stored handle like "Sushii_Otter"
+    // makes the API room-id source miss (InvalidResponseError) and leaves only the
+    // flakier HTML/Euler fallbacks. Normalize to lowercase, sans leading '@'.
+    const handle = this.svc.username.replace(/^@/, '').toLowerCase();
+    const username = `@${handle}`;
 
     this._intentionalDisconnect = false;
 
@@ -107,11 +116,24 @@ class TikTokCapture extends BaseCapture {
     try {
       await this._connection.connect();
     } catch (err) {
-      // Treat as "offline" (clean retry, no failure count) when:
-      //   - error class name includes 'Offline'
-      //   - message says offline/not online
+      // Treat as "offline" (clean retry, no failure count) ONLY when the streamer
+      // simply isn't live yet. tiktok-live-connector v2 surfaces that as a not-live
+      // signal — UserOfflineError, or a FetchIsLiveError with an EMPTY message — so
+      // message text alone isn't enough and we also match those class names. This
+      // lets capture wait patiently for the stream to start.
+      //
+      // NOTE: MissingRoomIdError is deliberately NOT treated as offline. It means the
+      // room id couldn't be resolved from ANY source (API/HTML/Euler) — i.e. a hard
+      // failure such as an invalid/expired EulerStream signing key or all sources
+      // exhausted, not "not live yet". A genuinely offline streamer throws
+      // UserOfflineError. Routing MissingRoomIdError through the error path (below)
+      // lets the manager back off and, after MAX_FAILURES, surface capture.error to
+      // the UI — instead of silently retrying a broken config forever.
       const msg = err?.message ?? '';
-      const isOffline = err?.constructor?.name?.includes('Offline')
+      const errName = err?.constructor?.name ?? '';
+      const OFFLINE_ERROR_CLASSES = ['UserOfflineError', 'FetchIsLiveError'];
+      const isOffline = errName.includes('Offline')
+        || OFFLINE_ERROR_CLASSES.includes(errName)
         || msg.toLowerCase().includes('offline')
         || msg.toLowerCase().includes('not online');
 
